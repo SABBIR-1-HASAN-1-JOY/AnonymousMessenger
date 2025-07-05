@@ -43,10 +43,11 @@ const Register: React.FC = () => {
       if (success) {
         navigate('/');
       } else {
-        setError('Email already exists');
+        setError('Registration failed. Email may already exist or there was a server error.');
       }
     } catch (err) {
-      setError('Registration failed. Please try again.');
+      console.error('Registration error:', err);
+      setError('Registration failed. Please check your connection and try again.');
     } finally {
       setLoading(false);
     }
@@ -75,16 +76,16 @@ const Register: React.FC = () => {
         </div>
 
         {/* Demo Account Info */}
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-          <h3 className="text-sm font-medium text-yellow-900 mb-2">Already have demo accounts?</h3>
-          <p className="text-xs text-yellow-700">
-            Try logging in with john@demo.com, sarah@demo.com, or mike@demo.com (password: demo)
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <h3 className="text-sm font-medium text-blue-900 mb-2">Connect to Server</h3>
+          <p className="text-xs text-blue-700">
+            Registration now connects to the server database. Make sure the server is running on port 5000.
           </p>
           <Link
             to="/login"
-            className="text-xs text-yellow-800 font-medium hover:text-yellow-900 underline"
+            className="text-xs text-blue-800 font-medium hover:text-blue-900 underline"
           >
-            Go to login page
+            Already have an account? Login here
           </Link>
         </div>
 

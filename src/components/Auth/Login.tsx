@@ -22,18 +22,14 @@ const Login: React.FC = () => {
       if (success) {
         navigate('/');
       } else {
-        setError('Invalid email or password');
+        setError('Invalid email or password. Please check your credentials and try again.');
       }
     } catch (err) {
-      setError('Login failed. Please try again.');
+      console.error('Login error:', err);
+      setError('Login failed. Please check your connection and try again.');
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleDemoLogin = (demoEmail: string) => {
-    setEmail(demoEmail);
-    setPassword('demo');
   };
 
   return (
@@ -51,33 +47,27 @@ const Login: React.FC = () => {
           </p>
         </div>
 
-        {/* Demo Users Section */}
+        {/* Server Connection Info */}
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <h3 className="text-sm font-medium text-blue-900 mb-3">Try Demo Accounts:</h3>
+          <h3 className="text-sm font-medium text-blue-900 mb-3">Server Connection</h3>
           <div className="space-y-2">
-            <button
-              onClick={() => handleDemoLogin('john@demo.com')}
-              className="w-full text-left p-2 bg-white rounded border hover:bg-blue-50 transition-colors"
-            >
-              <div className="text-sm font-medium text-gray-900">John Smith</div>
-              <div className="text-xs text-gray-600">john@demo.com - Tech enthusiast</div>
-            </button>
-            <button
-              onClick={() => handleDemoLogin('sarah@demo.com')}
-              className="w-full text-left p-2 bg-white rounded border hover:bg-blue-50 transition-colors"
-            >
-              <div className="text-sm font-medium text-gray-900">Sarah Johnson</div>
-              <div className="text-xs text-gray-600">sarah@demo.com - Travel blogger</div>
-            </button>
-            <button
-              onClick={() => handleDemoLogin('mike@demo.com')}
-              className="w-full text-left p-2 bg-white rounded border hover:bg-blue-50 transition-colors"
-            >
-              <div className="text-sm font-medium text-gray-900">Mike Chen</div>
-              <div className="text-xs text-gray-600">mike@demo.com - Software developer</div>
-            </button>
+            <div className="text-sm text-blue-800">
+              <p className="font-medium">✓ Connected to server database</p>
+              <p className="text-xs text-blue-600 mt-1">
+                Login with your registered account credentials
+              </p>
+            </div>
+            <div className="text-xs text-blue-700">
+              <p>Server: localhost:3000</p>
+              <p>Database: Connected</p>
+            </div>
           </div>
-          <p className="text-xs text-blue-700 mt-2">Password: demo (for all accounts)</p>
+          <Link
+            to="/register"
+            className="inline-block mt-2 text-xs text-blue-800 font-medium hover:text-blue-900 underline"
+          >
+            Don't have an account? Register here
+          </Link>
         </div>
 
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>

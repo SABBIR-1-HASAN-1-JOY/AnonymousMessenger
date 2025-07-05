@@ -77,40 +77,89 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   }, []);
 
   const login = async (email: string, password: string): Promise<boolean> => {
-    const users = JSON.parse(localStorage.getItem('jachai_users') || '[]');
-    const foundUser = users.find((u: User) => u.email === email);
-    
-    // For demo accounts, accept 'demo' as password, for others check if user exists
-    if (foundUser && (password === 'demo' || email.includes('@demo.com'))) {
+    try {
+      const response = await fetch('http://localhost:3000/api/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email,
+          password
+        }),
+      });
+
+      if (!response.ok) {
+        return false;
+      }
+
+      const userData = await response.json();
+      
+      // Convert server response to frontend User format
+      const foundUser: User = {
+        id: userData.user_id.toString(),
+        email: userData.email,
+        displayName: userData.username,
+        bio: userData.bio || '',
+        profilePicture: userData.profile_picture || undefined,
+        followers: [],
+        following: [],
+        createdAt: userData.created_at || new Date().toISOString()
+      };
+
       setUser(foundUser);
       localStorage.setItem('jachai_user', JSON.stringify(foundUser));
       return true;
+    } catch (error) {
+      console.error('Login error:', error);
+      return false;
     }
-    return false;
   };
 
   const register = async (email: string, password: string, displayName: string): Promise<boolean> => {
-    const users = JSON.parse(localStorage.getItem('jachai_users') || '[]');
-    
-    if (users.find((u: User) => u.email === email)) {
+    try {
+      const response = await fetch('http://localhost:3000/api/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          username: displayName,
+          email,
+          password,
+          created_at: new Date().toISOString(),
+          isAdmin: false,
+          bio: '',
+          profile_picture: null,
+          location: null
+        }),
+      });
+
+      if (!response.ok) {
+        return false;
+      }
+
+      const userData = await response.json();
+      
+      // Convert server response to frontend User format
+      const newUser: User = {
+        id: userData.user_id.toString(),
+        email: userData.email,
+        displayName: userData.username,
+        bio: userData.bio || '',
+        profilePicture: userData.profile_picture || undefined,
+        followers: [],
+        following: [],
+        createdAt: userData.created_at
+      };
+
+      setUser(newUser);
+      localStorage.setItem('jachai_user', JSON.stringify(newUser));
+      return true;
+    } catch (error) {
+      console.error('Registration error:', error);
       return false;
     }
-
-    const newUser: User = {
-      id: Date.now().toString(),
-      email,
-      displayName,
-      bio: '',
-      followers: [],
-      following: [],
-      createdAt: new Date().toISOString()
-    };
-
-    users.push(newUser);
-    localStorage.setItem('jachai_users', JSON.stringify(users));
-    setUser(newUser);
-    localStorage.setItem('jachai_user', JSON.stringify(newUser));
-    return true;
   };
 
   const logout = () => {
