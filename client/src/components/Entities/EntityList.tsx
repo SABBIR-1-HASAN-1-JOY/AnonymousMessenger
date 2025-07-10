@@ -31,7 +31,7 @@ const EntityList: React.FC = () => {
         case 'reviews':
           return b.reviewCount - a.reviewCount;
         case 'name':
-          return a.name.localeCompare(b.name);
+          return a.item_name.localeCompare(b.item_name);
         case 'newest':
           return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
         default:
@@ -137,14 +137,14 @@ const EntityList: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {filteredEntities.map((entity) => (
             <Link
-              key={entity.id}
-              to={`/entities/${entity.id}`}
+              key={entity.item_id}
+              to={`/entities/${entity.item_id}`}
               className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:scale-105"
             >
               <div className="aspect-w-16 aspect-h-9">
                 <img
                   src={entity.picture || 'https://images.pexels.com/photos/3944091/pexels-photo-3944091.jpeg?auto=compress&cs=tinysrgb&w=800'}
-                  alt={entity.name}
+                  alt={entity.item_name}
                   className="w-full h-48 object-cover"
                 />
               </div>
@@ -156,19 +156,19 @@ const EntityList: React.FC = () => {
                   <div className="flex items-center">
                     {renderStars(Math.round(entity.overallRating))}
                     <span className="ml-1 text-sm text-gray-600">
-                      {entity.overallRating.toFixed(1)}
+                      {entity?.overallRating?.toFixed(1)}
                     </span>
                   </div>
                 </div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-2 line-clamp-2">
-                  {entity.name}
+                  {entity.item_name}
                 </h3>
                 <p className="text-gray-600 text-sm mb-3 line-clamp-2">
                   {entity.description}
                 </p>
                 <div className="flex items-center justify-between text-sm text-gray-500">
                   <span>{entity.reviewCount} reviews</span>
-                  <span>{entity.followers.length} followers</span>
+                  <span>{entity?.followers?.length} followers</span>
                 </div>
               </div>
             </Link>

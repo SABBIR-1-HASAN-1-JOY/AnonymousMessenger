@@ -1,25 +1,109 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Star, Heart, Users, Calendar, Camera, Plus, ArrowLeft } from 'lucide-react';
+import { Star, Heart, Users, Calendar, Plus, ArrowLeft, Loader } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { useAuth } from '../../context/AuthContext';
 import CreateReview from './CreateReview';
 
+interface EntityDetailData {
+  id: string;
+  item_id?: string; // Database uses item_id
+  name: string; // Mapped from item_name by backend
+  item_name?: string; // Original database field
+  description: string;
+  category: string;
+  sector?: string;
+  picture?: string;
+  images?: string[];
+  overallRating: number;
+  reviewCount: number;
+  followers: string[];
+  createdAt: string;
+  reviews?: any[];
+}
+
 const EntityDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  const { entities, reviews, followEntity, unfollowEntity, isFollowingEntity } = useApp();
+  const { followEntity, unfollowEntity } = useApp();
   const { user } = useAuth();
   const [showCreateReview, setShowCreateReview] = useState(false);
   const [activeTab, setActiveTab] = useState<'reviews' | 'info'>('reviews');
+  const [entity, setEntity] = useState<EntityDetailData | null>(null);
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [entityReviews, setEntityReviews] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const entity = entities.find(e => e.id === id);
-  const entityReviews = reviews.filter(r => r.entityId === id);
+  // Fetch entity details from server
+  useEffect(() => {
+    const fetchEntityDetail = async () => {
+      if (!id) return;
+      
+      try {
+        setLoading(true);
+        setError(null);
+        
+        // console.log('Fetching entity details for ID:', id);
+        // console.log('ID type:', typeof id);
+        // console.log('Full URL:', `http://localhost:3000/api/entities/${id}/details`);
+        
+        const response = await fetch(`http://localhost:3000/api/entities/${id}/details`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+        
+        // console.log('Entity details response status:', response.status);
+        
+        if (!response.ok) {
+          if (response.status === 404) {
+            setError('Entity not found');
+          } else {
+            setError(`Failed to fetch entity details: ${response.status}`);
+          }
+          return;
+        }
+        
+        const entityData = await response.json();
+        console.log('Entity details received:', entityData);
+        console.log('Entity reviews:', entityData.reviews);
+        console.log('Number of reviews:', entityData.reviews?.length || 0);
+        
+        setEntity(entityData);
+        setEntityReviews(entityData.reviews || []);
+        
+      } catch (err) {
+        console.error('Error fetching entity details:', err);
+        setError('Failed to load entity details. Please check your connection.');
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  if (!entity) {
+    fetchEntityDetail();
+  }, [id]);
+
+  // Loading state
+  if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">Entity not found</h2>
+          <Loader className="w-8 h-8 text-blue-600 animate-spin mx-auto mb-4" />
+          <p className="text-gray-600">Loading entity details...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error || !entity) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">
+            {error || 'Entity not found'}
+          </h2>
           <Link to="/entities" className="text-blue-600 hover:text-blue-700">
             Back to entities
           </Link>
@@ -28,15 +112,15 @@ const EntityDetail: React.FC = () => {
     );
   }
 
-  const isFollowing = user ? isFollowingEntity(entity.id, user.id) : false;
-
   const handleFollowToggle = () => {
     if (!user) return;
     
     if (isFollowing) {
       unfollowEntity(entity.id, user.id);
+      setIsFollowing(false);
     } else {
       followEntity(entity.id, user.id);
+      setIsFollowing(true);
     }
   };
 
@@ -53,9 +137,9 @@ const EntityDetail: React.FC = () => {
 
   const ratingDistribution = [5, 4, 3, 2, 1].map(rating => ({
     rating,
-    count: entityReviews.filter(r => r.rating === rating).length,
+    count: entityReviews.filter(r => (r.rating || r.ratingpoint) === rating).length,
     percentage: entityReviews.length > 0 
-      ? (entityReviews.filter(r => r.rating === rating).length / entityReviews.length) * 100 
+      ? (entityReviews.filter(r => (r.rating || r.ratingpoint) === rating).length / entityReviews.length) * 100 
       : 0
   }));
 
@@ -80,7 +164,7 @@ const EntityDetail: React.FC = () => {
               <div className="aspect-w-16 aspect-h-12 rounded-xl overflow-hidden shadow-lg">
                 <img
                   src={entity.picture || 'https://images.pexels.com/photos/3944091/pexels-photo-3944091.jpeg?auto=compress&cs=tinysrgb&w=800'}
-                  alt={entity.name}
+                  alt={entity.name || entity.item_name}
                   className="w-full h-80 object-cover"
                 />
               </div>
@@ -93,7 +177,7 @@ const EntityDetail: React.FC = () => {
                   <span className="inline-block bg-blue-100 text-blue-800 text-sm font-medium px-3 py-1 rounded-full mb-2">
                     {entity.category}
                   </span>
-                  <h1 className="text-3xl font-bold text-gray-900 mb-2">{entity.name}</h1>
+                  <h1 className="text-3xl font-bold text-gray-900 mb-2">{entity.name || entity.item_name}</h1>
                   <p className="text-gray-600 text-lg mb-4">{entity.description}</p>
                 </div>
                 
@@ -117,21 +201,21 @@ const EntityDetail: React.FC = () => {
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center">
                     <div className="text-4xl font-bold text-gray-900 mr-3">
-                      {entity.overallRating.toFixed(1)}
+                      {entity?.overallRating?.toFixed(1)}
                     </div>
                     <div>
                       <div className="flex items-center mb-1">
-                        {renderStars(Math.round(entity.overallRating))}
+                        {renderStars(Math.round(entity?.overallRating))}
                       </div>
                       <div className="text-sm text-gray-600">
-                        Based on {entity.reviewCount} reviews
+                        Based on {entity?.reviewCount} reviews
                       </div>
                     </div>
                   </div>
                   
                   <div className="flex items-center text-gray-600">
                     <Users className="w-5 h-5 mr-2" />
-                    <span>{entity.followers.length} followers</span>
+                    <span>{entity?.followers?.length} followers</span>
                   </div>
                 </div>
 
@@ -198,54 +282,69 @@ const EntityDetail: React.FC = () => {
         {/* Tab Content */}
         {activeTab === 'reviews' && (
           <div className="space-y-6">
+            {/* {(() => {
+              console.log('Rendering reviews tab, entityReviews:', entityReviews);
+              console.log('entityReviews.length:', entityReviews.length);
+              console.log('entityReviews array:', JSON.stringify(entityReviews, null, 2));
+              return null;
+            })()} */}
             {entityReviews.length > 0 ? (
-              entityReviews
-                .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-                .map((review) => (
-                  <div key={review.id} className="bg-white rounded-xl shadow-md p-6">
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex items-center">
-                        <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-teal-500 rounded-full flex items-center justify-center">
-                          <span className="text-white font-medium text-lg">
-                            {review.userName.charAt(0)}
-                          </span>
-                        </div>
-                        <div className="ml-4">
-                          <h4 className="font-semibold text-gray-900">{review.userName}</h4>
+              <div>
+                {/* {(() => {
+                  console.log('About to render reviews...');
+                  return null;
+                })()} */}
+                {entityReviews
+                  .sort((a, b) => new Date(b.created_at || b.createdAt).getTime() - new Date(a.created_at || a.createdAt).getTime())
+                  .map((review, index) => {
+                    // console.log(`Rendering review ${index}:`, review);
+                    return (
+                      <div key={review.review_id || review.id || index} className="bg-white rounded-xl shadow-md p-6">
+                        <div className="flex items-start justify-between mb-4">
                           <div className="flex items-center">
-                            <div className="flex items-center mr-3">
-                              {renderStars(review.rating)}
+                            <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-teal-500 rounded-full flex items-center justify-center">
+                              <span className="text-white font-medium text-lg">
+                                {(review.userName || review.username || 'U').charAt(0)}
+                              </span>
                             </div>
-                            <span className="text-sm text-gray-500">
-                              <Calendar className="w-4 h-4 inline mr-1" />
-                              {new Date(review.createdAt).toLocaleDateString()}
-                            </span>
+                            <div className="ml-4">
+                              <h4 className="font-semibold text-gray-900">{review.userName || review.username || 'Anonymous'}</h4>
+                              <div className="flex items-center">
+                                <div className="flex items-center mr-3">
+                                  {renderStars(review.rating || review.ratingpoint || 0)}
+                                </div>
+                                <span className="text-sm text-gray-500">
+                                  <Calendar className="w-4 h-4 inline mr-1" />
+                                  {new Date(review.created_at || review.createdAt).toLocaleDateString()}
+                                </span>
+                              </div>
+                            </div>
                           </div>
                         </div>
+                        
+                        <h3 className="text-lg font-semibold text-gray-900 mb-2">{review.title || 'Review'}</h3>
+                        <p className="text-gray-700 leading-relaxed mb-4">{review.body || review.review_text || 'No review text'}</p>
+                        
+                        {review.pictures && review.pictures.length > 0 && (
+                          <div className="flex gap-2 mb-4">
+                            {review.pictures.map((pic: string, index: number) => (
+                              <img
+                                key={index}
+                                src={pic}
+                                alt={`Review image ${index + 1}`}
+                                className="w-20 h-20 object-cover rounded-lg"
+                              />
+                            ))}
+                          </div>
+                        )}
+                        
+                        <div className="flex items-center text-sm text-gray-500">
+                          <span>{review.upvotes || 0} helpful</span>
+                        </div>
                       </div>
-                    </div>
-                    
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">{review.title}</h3>
-                    <p className="text-gray-700 leading-relaxed mb-4">{review.body}</p>
-                    
-                    {review.pictures && review.pictures.length > 0 && (
-                      <div className="flex gap-2 mb-4">
-                        {review.pictures.map((pic, index) => (
-                          <img
-                            key={index}
-                            src={pic}
-                            alt={`Review image ${index + 1}`}
-                            className="w-20 h-20 object-cover rounded-lg"
-                          />
-                        ))}
-                      </div>
-                    )}
-                    
-                    <div className="flex items-center text-sm text-gray-500">
-                      <span>{review.upvotes} helpful</span>
-                    </div>
-                  </div>
-                ))
+                    );
+                  })}
+              </div>
             ) : (
               <div className="text-center py-12">
                 <Star className="w-16 h-16 text-gray-400 mx-auto mb-4" />
@@ -270,7 +369,7 @@ const EntityDetail: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Name</label>
-                <p className="text-gray-900">{entity.name}</p>
+                <p className="text-gray-900">{entity.name || entity.item_name}</p>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
@@ -299,7 +398,7 @@ const EntityDetail: React.FC = () => {
       {showCreateReview && (
         <CreateReview
           entityId={entity.id}
-          entityName={entity.name}
+          entityName={entity.name || entity.item_name || 'Unknown Entity'}
           onClose={() => setShowCreateReview(false)}
         />
       )}

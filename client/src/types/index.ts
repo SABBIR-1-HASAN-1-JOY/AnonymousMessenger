@@ -11,7 +11,9 @@ export interface User {
 
 export interface Entity {
   id: string;
-  name: string;
+  item_id?: string; // Database uses item_id instead of id
+  item_name: string; // Database uses item_name instead of name
+  name?: string; // Keep for backward compatibility
   description: string;
   category: string;
   sector?: string;

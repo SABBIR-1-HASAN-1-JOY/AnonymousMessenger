@@ -7,6 +7,7 @@ const entityRoutes = require('./routes/entityRoute.js') ;
 const heirarchyRoutes = require('./routes/hierarchyRoute.js') ;
 const userProfileRoute = require('./routes/userProfileRoute.js') ; 
 const userRoutes = require('./routes/userRoute.js') ; 
+// const entityDetailsRoute = require('./routes/entityDetails.js') ; // Assuming you have this route for entity details
 
 const app = express();
 
@@ -75,6 +76,8 @@ app.use('/api/categories', categoryRoutes);
 // Get entity details
 app.use('/api/entities', entityRoutes);
 // app.use('/api/entities/sub', entityRoutes);
+
+// app.use('/api/entities/:entityId/details', entityDetailsRoute); // Route for entity details
 
 // Get hierarchy
 app.use('/api/hierarchy', heirarchyRoutes);

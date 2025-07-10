@@ -11,7 +11,6 @@ interface AppContextType {
   addPost: (post: Omit<Post, 'id' | 'createdAt'>) => void;
   followEntity: (entityId: string, userId: string) => void;
   unfollowEntity: (entityId: string, userId: string) => void;
-  isFollowingEntity: (entityId: string, userId: string) => boolean;
   searchEntities: (query: string) => Entity[];
   getEntitiesByCategory: (category: string) => Entity[];
   addNotification: (notification: Omit<Notification, 'id' | 'createdAt'>) => void;
@@ -45,29 +44,29 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     const fetchDataFromServer = async () => {
       try {
         const entitiesResponse = await fetch('http://localhost:3000/api/entities');
-        const reviewsResponse = await fetch('http://localhost:3000/api/reviews');
-        const postsResponse = await fetch('http://localhost:3000/api/posts');
-        const notificationsResponse = await fetch('http://localhost:3000/api/notifications');
+        // const reviewsResponse = await fetch('http://localhost:3000/api/reviews');
+        // const postsResponse = await fetch('http://localhost:3000/api/posts');
+        // const notificationsResponse = await fetch('http://localhost:3000/api/notifications');
 
         if (entitiesResponse.ok) {
           const entitiesData = await entitiesResponse.json();
           setEntities(entitiesData);
         }
 
-        if (reviewsResponse.ok) {
-          const reviewsData = await reviewsResponse.json();
-          setReviews(reviewsData);
-        }
+        // if (reviewsResponse.ok) {
+        //   const reviewsData = await reviewsResponse.json();
+        //   setReviews(reviewsData);
+        // }
 
-        if (postsResponse.ok) {
-          const postsData = await postsResponse.json();
-          setPosts(postsData);
-        }
+        // if (postsResponse.ok) {
+        //   const postsData = await postsResponse.json();
+        //   setPosts(postsData);
+        // }
 
-        if (notificationsResponse.ok) {
-          const notificationsData = await notificationsResponse.json();
-          setNotifications(notificationsData);
-        }
+        // if (notificationsResponse.ok) {
+        //   const notificationsData = await notificationsResponse.json();
+        //   setNotifications(notificationsData);
+        // }
       } catch (error) {
         console.error('Error fetching data from server:', error);
       }
@@ -240,14 +239,9 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     localStorage.setItem('jachai_entities', JSON.stringify(updatedEntities));
   };
 
-  const isFollowingEntity = (entityId: string, userId: string): boolean => {
-    const entity = entities.find(e => e.id === entityId);
-    return entity?.followers.includes(userId) || false;
-  };
-
   const searchEntities = (query: string): Entity[] => {
     return entities.filter(entity =>
-      entity.name.toLowerCase().includes(query.toLowerCase()) ||
+      entity.item_name.toLowerCase().includes(query.toLowerCase()) ||
       entity.description.toLowerCase().includes(query.toLowerCase()) ||
       entity.category.toLowerCase().includes(query.toLowerCase())
     );
@@ -290,7 +284,6 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       addPost,
       followEntity,
       unfollowEntity,
-      isFollowingEntity,
       searchEntities,
       getEntitiesByCategory,
       addNotification,

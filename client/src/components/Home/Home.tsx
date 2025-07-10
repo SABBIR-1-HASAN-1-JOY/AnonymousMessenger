@@ -8,6 +8,10 @@ const Home: React.FC = () => {
   const { user } = useAuth();
   const { entities, reviews, posts } = useApp();
 
+  // Debug: Log entity data to see the structure
+  console.log('Entities from AppContext:', entities);
+  console.log('Sample entity:', entities[0]);
+
   // Get featured entities (highest rated)
   const featuredEntities = entities
     .sort((a, b) => b.overallRating - a.overallRating)
@@ -155,14 +159,14 @@ const Home: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {featuredEntities.map((entity) => (
               <Link
-                key={entity.id}
-                to={`/entities/${entity.id}`}
-                className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition-shadow transform hover:scale-105"
+                key={entity.item_id || entity.id}
+                to={`/entities/${entity.item_id || entity.id}`}
+                className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:scale-105 cursor-pointer"
               >
                 <div className="aspect-w-16 aspect-h-9">
                   <img
                     src={entity.picture || 'https://images.pexels.com/photos/3944091/pexels-photo-3944091.jpeg?auto=compress&cs=tinysrgb&w=800'}
-                    alt={entity.name}
+                    alt={entity.item_name || entity.name}
                     className="w-full h-48 object-cover"
                   />
                 </div>
@@ -172,13 +176,13 @@ const Home: React.FC = () => {
                       {entity.category}
                     </span>
                     <div className="flex items-center">
-                      {renderStars(Math.round(entity.overallRating))}
+                      {renderStars(Math.round(entity.overallRating ? entity.overallRating : 0))}
                       <span className="ml-2 text-sm text-gray-600">
-                        {entity.overallRating.toFixed(1)}
+                        {entity.overallRating ? entity.overallRating.toFixed(1) : '0.0'}
                       </span>
                     </div>
                   </div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">{entity.name}</h3>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">{entity.item_name || entity.name}</h3>
                   <p className="text-gray-600 text-sm">{entity.description}</p>
                   <div className="mt-4 text-sm text-gray-500">
                     {entity.reviewCount} reviews
@@ -236,7 +240,7 @@ const Home: React.FC = () => {
               <h3 className="text-xl font-semibold text-gray-900 mb-6">Latest Reviews</h3>
               <div className="space-y-4">
                 {recentReviews.map((review) => {
-                  const entity = entities.find(e => e.id === review.entityId);
+                  const entity = entities.find(e => (e.item_id || e.id) === review.entityId);
                   return (
                     <div key={review.id} className="bg-gray-50 rounded-lg p-4">
                       <div className="flex items-center justify-between mb-2">
@@ -260,7 +264,9 @@ const Home: React.FC = () => {
                       <h4 className="font-medium text-gray-900">{review.title}</h4>
                       <p className="text-sm text-gray-600 mt-1">{review.body}</p>
                       {entity && (
-                        <p className="text-xs text-blue-600 mt-2">for {entity.name}</p>
+                        <Link to={`/entities/${entity.item_id || entity.id}`} className="text-xs text-blue-600 mt-2 hover:text-blue-800 hover:underline">
+                          for {entity.item_name || entity.name}
+                        </Link>
                       )}
                     </div>
                   );

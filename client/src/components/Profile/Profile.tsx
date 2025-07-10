@@ -208,7 +208,6 @@ const Profile: React.FC = () => {
   const followingCount = userProfile?.followingCount ?? 0;
   const userReviewsCount = userReviews.length;
 
-
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -224,7 +223,7 @@ const Profile: React.FC = () => {
             </button>
           </div>
         )}
-
+  
         {/* Server Connection Status */}
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
           <div className="flex items-center justify-between">
