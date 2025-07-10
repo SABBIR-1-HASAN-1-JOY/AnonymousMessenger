@@ -330,7 +330,13 @@ const EntityDetail: React.FC = () => {
                 {entityReviews
                   .sort((a, b) => new Date(b.created_at || b.createdAt).getTime() - new Date(a.created_at || a.createdAt).getTime())
                   .map((review, index) => {
-                    // console.log(`Rendering review ${index}:`, review);
+                    console.log(`Review ${index} fields:`, Object.keys(review));
+                    console.log(`Review ${index} text content:`, {
+                      review_text: review.review_text,
+                      body: review.body,
+                      content: review.content,
+                      text: review.text
+                    });
                     return (
                       <div key={review.review_id || review.id || index} className="bg-white rounded-xl shadow-md p-6">
                         <div className="flex items-start justify-between mb-4">
@@ -355,8 +361,10 @@ const EntityDetail: React.FC = () => {
                           </div>
                         </div>
                         
-                        <h3 className="text-lg font-semibold text-gray-900 mb-2">{review.title || 'Review'}</h3>
-                        <p className="text-gray-700 leading-relaxed mb-4">{review.body || review.review_text || 'No review text'}</p>
+                        <h3 className="text-lg font-semibold text-gray-900 mb-2">{review.title || review.review_title || 'Review'}</h3>
+                        <p className="text-gray-700 leading-relaxed mb-4">
+                          {review.review_text || review.body || review.content || review.text || 'No review text'}
+                        </p>
                         
                         {review.pictures && review.pictures.length > 0 && (
                           <div className="flex gap-2 mb-4">
