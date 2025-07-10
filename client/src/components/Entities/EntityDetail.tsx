@@ -66,11 +66,38 @@ const EntityDetail: React.FC = () => {
         }
         
         const entityData = await response.json();
+        console.log('jani na');
         console.log('Entity details received:', entityData);
-        console.log('Entity reviews:', entityData.reviews);
-        console.log('Number of reviews:', entityData.reviews?.length || 0);
         
-        setEntity(entityData);
+        // Check if the response has the entity nested inside an 'entity' property
+        const actualEntityData = entityData.entity ? entityData.entity[0] : entityData;
+        
+        console.log('Actual entity data to use:', actualEntityData);
+        console.log('Entity name field:', actualEntityData.name);
+        console.log('Entity item_name field:', actualEntityData.item_name);
+        console.log('All entity fields:', Object.keys(actualEntityData));
+        
+        // Create the properly formatted entity object
+        const formattedEntity = {
+          id: actualEntityData.item_id?.toString() || actualEntityData.id,
+          item_id: actualEntityData.item_id,
+          name: actualEntityData.item_name || actualEntityData.name,
+          item_name: actualEntityData.item_name,
+          description: actualEntityData.description || '',
+          category: actualEntityData.category_name || actualEntityData.category || 'Unknown',
+          sector: actualEntityData.sector_name || actualEntityData.sector || '',
+          picture: actualEntityData.picture || '',
+          images: actualEntityData.images || [],
+          overallRating: parseFloat(actualEntityData.average_rating) || actualEntityData.overallRating || 0,
+          reviewCount: parseInt(actualEntityData.review_count) || actualEntityData.reviewCount || 0,
+          followers: actualEntityData.followers || [],
+          createdAt: actualEntityData.created_at || actualEntityData.createdAt || new Date().toISOString(),
+          reviews: entityData.reviews || []
+        };
+        
+        console.log('Formatted entity for state:', formattedEntity);
+        
+        setEntity(formattedEntity);
         setEntityReviews(entityData.reviews || []);
         
       } catch (err) {
@@ -177,7 +204,13 @@ const EntityDetail: React.FC = () => {
                   <span className="inline-block bg-blue-100 text-blue-800 text-sm font-medium px-3 py-1 rounded-full mb-2">
                     {entity.category}
                   </span>
-                  <h1 className="text-3xl font-bold text-gray-900 mb-2">{entity.name || entity.item_name}</h1>
+                  <h1 className="text-3xl font-bold text-gray-900 mb-2">
+                    {entity.name || entity.item_name || 'No Name Found'}
+                  </h1>
+                  {/* Debug info */}
+                  <div className="text-xs text-red-500 mb-2">
+                    {/* Debug - name: "{entity.name}" | item_name: "{entity.item_name}" */}
+                  </div>
                   <p className="text-gray-600 text-lg mb-4">{entity.description}</p>
                 </div>
                 
