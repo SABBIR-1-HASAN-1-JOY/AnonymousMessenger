@@ -1,11 +1,51 @@
-import React, { useState } from 'react';
-import { Calendar, MapPin, Link as LinkIcon, Edit, Star, MessageSquare, Users, Heart } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Calendar, MapPin, Link as LinkIcon, Edit, Star, MessageSquare, Users, Heart, Loader } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useApp } from '../../context/AppContext';
 
+interface Review {
+  review_id: number;
+  item_id: number;
+  user_id: number;
+  ratingpoint: number;
+  review_text: string;
+  created_at: string;
+  share_link: string;
+  ishide: boolean;
+}
+
+interface Post {
+  post_id: number;
+  user_id: number;
+  post_text: string;
+  created_at: string;
+  post_title?: string;
+}
+
+interface UserProfile {
+  user_id: number;
+  username: string;
+  email: string;
+  bio?: string;
+  profile_picture?: string;
+  location?: string;
+  created_at: string;
+  isAdmin: boolean;
+  post_count?: number;
+  review_count?: number;
+  entity_count?: number;
+  followerCount?: number;
+  followingCount?: number;
+  posts?: Post[];
+  reviews?: Review[];
+}
+
 const Profile: React.FC = () => {
   const { user, updateProfile } = useAuth();
-  const { posts, reviews, entities } = useApp();
+  const { entities } = useApp();
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [activeTab, setActiveTab] = useState<'posts' | 'reviews' | 'following'>('posts');
   const [editData, setEditData] = useState({
@@ -13,6 +53,115 @@ const Profile: React.FC = () => {
     bio: user?.bio || ''
   });
 
+  // Fetch user profile from server
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      if (!user?.id) {
+        setLoading(false);
+        return;
+      }
+      
+      try {
+        setLoading(true);
+        setError('');
+        
+        console.log('Fetching user profile for user ID:', user.id);
+        const response = await fetch(`http://localhost:3000/api/userProfile/${user.id}`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+        
+        console.log('Profile fetch response status:', response.status);
+        
+        if (!response.ok) {
+          if (response.status === 404) {
+            setError('User profile not found');
+          } else {
+            setError(`Failed to fetch profile: ${response.status}`);
+          }
+          return;
+        }
+        
+        const profileData = await response.json();
+        console.log('Profile data received:', profileData);
+        console.log('Follower count from server:', profileData.followerCount);
+        console.log('Following count from server:', profileData.followingCount);
+        setUserProfile(profileData);
+        
+        // Update edit data with server data
+        setEditData({
+          displayName: profileData.username || '',
+          bio: profileData.bio || ''
+        });
+        
+      } catch (err) {
+        console.error('Error fetching user profile:', err);
+        setError('Failed to load profile data. Please check your connection.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUserProfile();
+  }, [user?.id]);
+
+  // Update user profile on server
+  const handleSaveProfile = async () => {
+    if (!user?.id) return;
+    
+    try {
+      setLoading(true);
+      setError('');
+      
+      console.log('Updating user profile:', editData);
+      const response = await fetch(`http://localhost:3000/api/userProfile/${user.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          username: editData.displayName,
+          bio: editData.bio
+        }),
+      });
+      
+      console.log('Profile update response status:', response.status);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to update profile: ${response.status}`);
+      }
+      
+      const updatedProfile = await response.json();
+      console.log('Profile updated successfully:', updatedProfile);
+      setUserProfile(updatedProfile);
+      
+      // Update local auth context
+      updateProfile(editData);
+      setIsEditing(false);
+      
+    } catch (err) {
+      console.error('Error updating user profile:', err);
+      setError('Failed to update profile. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Loading state
+  if (loading && !userProfile) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <Loader className="w-8 h-8 text-blue-600 animate-spin mx-auto mb-4" />
+          <p className="text-gray-600">Loading profile...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Not logged in state
   if (!user) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -23,13 +172,25 @@ const Profile: React.FC = () => {
     );
   }
 
-  const userPosts = posts.filter(post => post.userId === user.id);
-  const userReviews = reviews.filter(review => review.userId === user.id);
-  const followingEntities = entities.filter(entity => entity.followers.includes(user.id));
+  const userPosts = userProfile?.posts || [];
+  const userReviews = userProfile?.reviews || [];
 
-  const handleSaveProfile = () => {
-    updateProfile(editData);
-    setIsEditing(false);
+  // Use server profile data if available, fallback to auth context data
+  const displayProfile = userProfile || {
+    username: user.displayName,
+    email: user.email,
+    bio: user.bio,
+    profile_picture: user.profilePicture,
+    location: '',
+    created_at: user.createdAt,
+    isAdmin: false,
+    post_count: userPosts.length,
+    review_count: userReviews.length,
+    entity_count: 0,
+    followerCount: 0,
+    followingCount: 0,
+    posts: [],
+    reviews: []
   };
 
   const renderStars = (rating: number) => {
@@ -43,9 +204,43 @@ const Profile: React.FC = () => {
     ));
   };
 
+  const userPostsCount = userPosts.length;
+  const followingCount = userProfile?.followingCount ?? 0;
+  const userReviewsCount = userReviews.length;
+
+
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Error State */}
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+            <p className="text-red-700">{error}</p>
+            <button
+              onClick={() => window.location.reload()}
+              className="mt-2 px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700"
+            >
+              Retry
+            </button>
+          </div>
+        )}
+
+        {/* Server Connection Status */}
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-medium text-blue-900">Server Connection</h3>
+              <p className="text-xs text-blue-700">
+                {userProfile 
+                  ? '✓ Connected to server database' 
+                  : '⚠ Using local data (server unavailable)'
+                }
+              </p>
+            </div>
+            {loading && <Loader className="w-4 h-4 text-blue-600 animate-spin" />}
+          </div>
+        </div>
+
         {/* Profile Header */}
         <div className="bg-white rounded-xl shadow-md overflow-hidden mb-8">
           {/* Cover Photo */}
@@ -55,15 +250,15 @@ const Profile: React.FC = () => {
           <div className="px-6 pb-6">
             <div className="flex items-start -mt-16 mb-4">
               <div className="w-32 h-32 bg-white rounded-full border-4 border-white shadow-lg flex items-center justify-center">
-                {user.profilePicture ? (
+                {displayProfile.profile_picture ? (
                   <img
-                    src={user.profilePicture}
-                    alt={user.displayName}
+                    src={displayProfile.profile_picture}
+                    alt={displayProfile.username}
                     className="w-full h-full rounded-full object-cover"
                   />
                 ) : (
                   <span className="text-4xl font-bold text-gray-600">
-                    {user.displayName.charAt(0)}
+                    {displayProfile.username?.charAt(0) || 'U'}
                   </span>
                 )}
               </div>
@@ -79,9 +274,15 @@ const Profile: React.FC = () => {
                         className="text-2xl font-bold text-gray-900 border-b border-gray-300 focus:border-blue-500 outline-none"
                       />
                     ) : (
-                      <h1 className="text-2xl font-bold text-gray-900">{user.displayName}</h1>
+                      <h1 className="text-2xl font-bold text-gray-900">{displayProfile.username}</h1>
                     )}
-                    <p className="text-gray-600">{user.email}</p>
+                    <p className="text-gray-600">{displayProfile.email}</p>
+                    {displayProfile.location && (
+                      <div className="flex items-center text-sm text-gray-500 mt-1">
+                        <MapPin className="w-4 h-4 mr-1" />
+                        {displayProfile.location}
+                      </div>
+                    )}
                   </div>
                   
                   <div className="flex gap-2">
@@ -89,21 +290,24 @@ const Profile: React.FC = () => {
                       <>
                         <button
                           onClick={() => setIsEditing(false)}
-                          className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                          disabled={loading}
+                          className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
                         >
                           Cancel
                         </button>
                         <button
                           onClick={handleSaveProfile}
-                          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                          disabled={loading}
+                          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
                         >
-                          Save
+                          {loading ? 'Saving...' : 'Save'}
                         </button>
                       </>
                     ) : (
                       <button
                         onClick={() => setIsEditing(true)}
-                        className="flex items-center px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                        disabled={loading}
+                        className="flex items-center px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
                       >
                         <Edit className="w-4 h-4 mr-2" />
                         Edit Profile
@@ -123,7 +327,7 @@ const Profile: React.FC = () => {
                     />
                   ) : (
                     <p className="text-gray-700">
-                      {user.bio || 'No bio added yet.'}
+                      {displayProfile.bio || 'No bio added yet.'}
                     </p>
                   )}
                 </div>
@@ -131,15 +335,15 @@ const Profile: React.FC = () => {
                 <div className="flex items-center text-sm text-gray-500 mt-4 space-x-6">
                   <div className="flex items-center">
                     <Calendar className="w-4 h-4 mr-1" />
-                    Joined {new Date(user.createdAt).toLocaleDateString()}
+                    Joined {new Date(displayProfile.created_at).toLocaleDateString()}
                   </div>
                   <div className="flex items-center">
                     <Users className="w-4 h-4 mr-1" />
-                    {user.followers.length} followers
+                    {displayProfile.followerCount || 0} followers
                   </div>
                   <div className="flex items-center">
                     <Heart className="w-4 h-4 mr-1" />
-                    {user.following.length} following
+                    {displayProfile.followingCount || 0} following
                   </div>
                 </div>
               </div>
@@ -151,17 +355,23 @@ const Profile: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <div className="bg-white rounded-xl shadow-md p-6 text-center">
             <MessageSquare className="w-8 h-8 text-blue-600 mx-auto mb-2" />
-            <div className="text-2xl font-bold text-gray-900">{userPosts.length}</div>
+            <div className="text-2xl font-bold text-gray-900">
+              {userPostsCount}
+            </div>
             <div className="text-gray-600">Posts</div>
           </div>
           <div className="bg-white rounded-xl shadow-md p-6 text-center">
             <Star className="w-8 h-8 text-yellow-600 mx-auto mb-2" />
-            <div className="text-2xl font-bold text-gray-900">{userReviews.length}</div>
+            <div className="text-2xl font-bold text-gray-900">
+              {userReviewsCount}
+            </div>
             <div className="text-gray-600">Reviews</div>
           </div>
           <div className="bg-white rounded-xl shadow-md p-6 text-center">
             <Heart className="w-8 h-8 text-red-600 mx-auto mb-2" />
-            <div className="text-2xl font-bold text-gray-900">{followingEntities.length}</div>
+            <div className="text-2xl font-bold text-gray-900">
+              {followingCount}
+            </div>
             <div className="text-gray-600">Following</div>
           </div>
         </div>
@@ -177,7 +387,7 @@ const Profile: React.FC = () => {
                   : 'border-transparent text-gray-600 hover:text-gray-900'
               }`}
             >
-              Posts ({userPosts.length})
+              Posts ({userPostsCount})
             </button>
             <button
               onClick={() => setActiveTab('reviews')}
@@ -187,7 +397,7 @@ const Profile: React.FC = () => {
                   : 'border-transparent text-gray-600 hover:text-gray-900'
               }`}
             >
-              Reviews ({userReviews.length})
+              Reviews ({userReviewsCount})
             </button>
             <button
               onClick={() => setActiveTab('following')}
@@ -197,7 +407,7 @@ const Profile: React.FC = () => {
                   : 'border-transparent text-gray-600 hover:text-gray-900'
               }`}
             >
-              Following ({followingEntities.length})
+              Following ({followingCount})
             </button>
           </div>
 
@@ -206,41 +416,15 @@ const Profile: React.FC = () => {
               <div className="space-y-6">
                 {userPosts.length > 0 ? (
                   userPosts
-                    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
                     .map((post) => (
-                      <div key={post.id} className="border border-gray-200 rounded-lg p-4">
-                        {post.type === 'rate-my-work' ? (
-                          <div>
-                            <h3 className="font-semibold text-gray-900 mb-2">{post.title}</h3>
-                            <p className="text-gray-700 mb-3">{post.description}</p>
-                            {post.image && (
-                              <img
-                                src={post.image}
-                                alt={post.title}
-                                className="w-full max-w-md h-48 object-cover rounded-lg mb-3"
-                              />
-                            )}
-                            <div className="text-sm text-gray-500">
-                              {post.ratings.length} ratings • {post.comments.length} comments
-                            </div>
-                          </div>
-                        ) : (
-                          <div>
-                            <p className="text-gray-700 mb-3">{post.content}</p>
-                            {post.image && (
-                              <img
-                                src={post.image}
-                                alt="Post"
-                                className="w-full max-w-md h-48 object-cover rounded-lg mb-3"
-                              />
-                            )}
-                            <div className="text-sm text-gray-500">
-                              {post.upvotes} upvotes • {post.comments.length} comments
-                            </div>
-                          </div>
+                      <div key={post.post_id} className="border border-gray-200 rounded-lg p-4">
+                        {post.post_title && (
+                          <h3 className="font-semibold text-gray-900 mb-2">{post.post_title}</h3>
                         )}
+                        <p className="text-gray-700 mb-3">{post.post_text}</p>
                         <div className="text-xs text-gray-400 mt-2">
-                          {new Date(post.createdAt).toLocaleDateString()}
+                          Posted on {new Date(post.created_at).toLocaleDateString()}
                         </div>
                       </div>
                     ))
@@ -257,25 +441,20 @@ const Profile: React.FC = () => {
               <div className="space-y-6">
                 {userReviews.length > 0 ? (
                   userReviews
-                    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
                     .map((review) => {
-                      const entity = entities.find(e => e.id === review.entityId);
+                      const entity = entities.find(e => e.id === review.item_id.toString());
                       return (
-                        <div key={review.id} className="border border-gray-200 rounded-lg p-4">
+                        <div key={review.review_id} className="border border-gray-200 rounded-lg p-4">
                           <div className="flex items-center justify-between mb-2">
-                            <h3 className="font-semibold text-gray-900">{review.title}</h3>
+                            <h3 className="font-semibold text-gray-900">Review for {entity?.name || 'an entity'}</h3>
                             <div className="flex items-center">
-                              {renderStars(review.rating)}
+                              {renderStars(review.ratingpoint)}
                             </div>
                           </div>
-                          <p className="text-gray-700 mb-3">{review.body}</p>
-                          {entity && (
-                            <p className="text-sm text-blue-600 mb-2">
-                              Review for {entity.name}
-                            </p>
-                          )}
+                          <p className="text-gray-700 mb-3">{review.review_text}</p>
                           <div className="text-xs text-gray-400">
-                            {new Date(review.createdAt).toLocaleDateString()}
+                            {new Date(review.created_at).toLocaleDateString()}
                           </div>
                         </div>
                       );
@@ -290,35 +469,14 @@ const Profile: React.FC = () => {
             )}
 
             {activeTab === 'following' && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {followingEntities.length > 0 ? (
-                  followingEntities.map((entity) => (
-                    <div key={entity.id} className="border border-gray-200 rounded-lg p-4">
-                      <div className="flex items-center">
-                        <img
-                          src={entity.picture || 'https://images.pexels.com/photos/3944091/pexels-photo-3944091.jpeg?auto=compress&cs=tinysrgb&w=800'}
-                          alt={entity.name}
-                          className="w-12 h-12 object-cover rounded-lg mr-4"
-                        />
-                        <div>
-                          <h3 className="font-semibold text-gray-900">{entity.name}</h3>
-                          <p className="text-sm text-gray-600">{entity.category}</p>
-                          <div className="flex items-center mt-1">
-                            {renderStars(Math.round(entity.overallRating))}
-                            <span className="ml-1 text-sm text-gray-500">
-                              ({entity.reviewCount})
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="col-span-2 text-center py-8">
-                    <Heart className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-600">Not following any entities yet</p>
-                  </div>
-                )}
+              <div className="text-center py-8">
+                <Heart className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-600">
+                  You are following {followingCount} entities.
+                </p>
+                <p className="text-sm text-gray-500 mt-2">
+                  A detailed list of followed entities is coming soon!
+                </p>
               </div>
             )}
           </div>

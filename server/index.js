@@ -106,7 +106,7 @@ app.post('/api/register', async (req, res) => {
   try {
     console.log('Attempting to insert user into database...');
     const result = await pool.query(
-      `INSERT INTO "USER" (username, email, password, created_at, isAdmin, bio, profile_picture, location)
+      `INSERT INTO "user" (username, email, password, created_at, isAdmin, bio, profile_picture, location)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        RETURNING user_id, username, email, created_at, isAdmin, bio, profile_picture, location`,
       [username, email, password, created_at, isAdmin, bio, profile_picture, location]
@@ -126,7 +126,7 @@ app.post('/api/register', async (req, res) => {
   }
 });
 
-// User login
+// user login
 app.post('/api/login', async (req, res) => {
   console.log('=== LOGIN ENDPOINT HIT ===');
   const { email, password } = req.body;
@@ -135,7 +135,7 @@ app.post('/api/login', async (req, res) => {
   try {
     console.log('Querying database for user...');
     const result = await pool.query(
-      'SELECT user_id, username, email, password, isAdmin from "USER" WHERE email = $1',
+      'SELECT user_id, username, email, password, isAdmin from "user" WHERE email = $1',
       [email]
     );
     
@@ -147,7 +147,7 @@ app.post('/api/login', async (req, res) => {
     }
     
     const user = result.rows[0];
-    console.log('User found:', { user_id: user.user_id, username: user.username, email: user.email });
+    console.log('user found:', { user_id: user.user_id, username: user.username, email: user.email });
     
     // In production, use bcrypt to compare hashed passwords
     if (user.password !== password) {

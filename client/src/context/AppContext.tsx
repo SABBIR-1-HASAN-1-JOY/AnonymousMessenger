@@ -25,7 +25,7 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const useApp = () => {
   const context = useContext(AppContext);
-  if (context === undefined) {
+  if( context === undefined) {
     throw new Error('useApp must be used within an AppProvider');
   }
   return context;
@@ -42,197 +42,38 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
 
   useEffect(() => {
-    // Load data from localStorage
-    const savedEntities = localStorage.getItem('jachai_entities');
-    const savedReviews = localStorage.getItem('jachai_reviews');
-    const savedPosts = localStorage.getItem('jachai_posts');
-    const savedNotifications = localStorage.getItem('jachai_notifications');
+    const fetchDataFromServer = async () => {
+      try {
+        const entitiesResponse = await fetch('http://localhost:3000/api/entities');
+        const reviewsResponse = await fetch('http://localhost:3000/api/reviews');
+        const postsResponse = await fetch('http://localhost:3000/api/posts');
+        const notificationsResponse = await fetch('http://localhost:3000/api/notifications');
 
-    if (savedEntities) setEntities(JSON.parse(savedEntities));
-    if (savedReviews) setReviews(JSON.parse(savedReviews));
-    if (savedPosts) setPosts(JSON.parse(savedPosts));
-    if (savedNotifications) setNotifications(JSON.parse(savedNotifications));
-
-    // Initialize with sample data if empty
-    if (!savedEntities) {
-      const sampleEntities: Entity[] = [
-        {
-          id: '1',
-          name: 'iPhone 15 Pro',
-          description: 'Latest Apple smartphone with titanium design and advanced camera system',
-          category: 'Electronics',
-          sector: 'Smartphones',
-          picture: 'https://images.pexels.com/photos/11165799/pexels-photo-11165799.jpeg?auto=compress&cs=tinysrgb&w=800',
-          overallRating: 4.5,
-          reviewCount: 12,
-          followers: ['demo1', 'demo2'],
-          createdAt: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString()
-        },
-        {
-          id: '2',
-          name: 'The Cheesecake Factory',
-          description: 'Popular restaurant chain known for extensive menu and delicious cheesecakes',
-          category: 'Restaurants',
-          sector: 'Casual Dining',
-          picture: 'https://images.pexels.com/photos/1639565/pexels-photo-1639565.jpeg?auto=compress&cs=tinysrgb&w=800',
-          overallRating: 4.2,
-          reviewCount: 8,
-          followers: ['demo2', 'demo3'],
-          createdAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString()
-        },
-        {
-          id: '3',
-          name: 'Tesla Model 3',
-          description: 'Electric sedan with autopilot features and impressive range',
-          category: 'Automotive',
-          sector: 'Electric Vehicles',
-          picture: 'https://images.pexels.com/photos/3802510/pexels-photo-3802510.jpeg?auto=compress&cs=tinysrgb&w=800',
-          overallRating: 4.7,
-          reviewCount: 15,
-          followers: ['demo1', 'demo3'],
-          createdAt: new Date(Date.now() - 25 * 24 * 60 * 60 * 1000).toISOString()
-        },
-        {
-          id: '4',
-          name: 'MacBook Pro M3',
-          description: 'Professional laptop with M3 chip for creative professionals',
-          category: 'Electronics',
-          sector: 'Laptops',
-          picture: 'https://images.pexels.com/photos/205421/pexels-photo-205421.jpeg?auto=compress&cs=tinysrgb&w=800',
-          overallRating: 4.6,
-          reviewCount: 9,
-          followers: ['demo1'],
-          createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString()
+        if (entitiesResponse.ok) {
+          const entitiesData = await entitiesResponse.json();
+          setEntities(entitiesData);
         }
-      ];
-      setEntities(sampleEntities);
-      localStorage.setItem('jachai_entities', JSON.stringify(sampleEntities));
-    }
 
-    // Initialize sample reviews if empty
-    if (!savedReviews) {
-      const sampleReviews: Review[] = [
-        {
-          id: 'r1',
-          entityId: '1',
-          userId: 'demo1',
-          userName: 'John Smith',
-          title: 'Amazing camera quality!',
-          body: 'The iPhone 15 Pro camera is absolutely incredible. The new titanium design feels premium and the battery life is much better than my previous phone.',
-          rating: 5,
-          upvotes: 8,
-          downvotes: 1,
-          createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString()
-        },
-        {
-          id: 'r2',
-          entityId: '2',
-          userId: 'demo2',
-          userName: 'Sarah Johnson',
-          title: 'Great food, long wait times',
-          body: 'The food at Cheesecake Factory is always delicious and the portions are huge. However, be prepared to wait for a table, especially on weekends.',
-          rating: 4,
-          upvotes: 12,
-          downvotes: 2,
-          createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString()
-        },
-        {
-          id: 'r3',
-          entityId: '3',
-          userId: 'demo3',
-          userName: 'Mike Chen',
-          title: 'Best car I\'ve ever owned',
-          body: 'Tesla Model 3 has completely changed my driving experience. The autopilot is amazing and I love never having to go to gas stations again.',
-          rating: 5,
-          upvotes: 15,
-          downvotes: 0,
-          createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
+        if (reviewsResponse.ok) {
+          const reviewsData = await reviewsResponse.json();
+          setReviews(reviewsData);
         }
-      ];
-      setReviews(sampleReviews);
-      localStorage.setItem('jachai_reviews', JSON.stringify(sampleReviews));
-    }
 
-    // Initialize sample posts if empty
-    if (!savedPosts) {
-      const samplePosts: Post[] = [
-        {
-          id: 'p1',
-          type: 'rate-my-work',
-          userId: 'demo1',
-          userName: 'John Smith',
-          title: 'My Photography Portfolio Website',
-          description: 'Just finished building my photography portfolio website. Would love to get feedback on the design and user experience!',
-          image: 'https://images.pexels.com/photos/196644/pexels-photo-196644.jpeg?auto=compress&cs=tinysrgb&w=800',
-          ratings: [
-            { userId: 'demo2', rating: 5 },
-            { userId: 'demo3', rating: 4 }
-          ],
-          comments: [],
-          createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString()
-        },
-        {
-          id: 'p2',
-          type: 'simple',
-          userId: 'demo2',
-          userName: 'Sarah Johnson',
-          content: 'Just tried the new sushi place downtown and it was incredible! The fish was so fresh and the presentation was beautiful. Definitely going back soon! 🍣',
-          image: 'https://images.pexels.com/photos/357756/pexels-photo-357756.jpeg?auto=compress&cs=tinysrgb&w=800',
-          upvotes: 23,
-          downvotes: 1,
-          comments: [],
-          createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString()
-        },
-        {
-          id: 'p3',
-          type: 'simple',
-          userId: 'demo3',
-          userName: 'Mike Chen',
-          content: 'Anyone else excited about the new gaming laptop releases this year? The performance improvements are insane compared to last generation.',
-          upvotes: 18,
-          downvotes: 3,
-          comments: [],
-          createdAt: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString() // 4 hours ago
+        if (postsResponse.ok) {
+          const postsData = await postsResponse.json();
+          setPosts(postsData);
         }
-      ];
-      setPosts(samplePosts);
-      localStorage.setItem('jachai_posts', JSON.stringify(samplePosts));
-    }
 
-    // Initialize sample notifications if empty
-    if (!savedNotifications) {
-      const sampleNotifications: Notification[] = [
-        {
-          id: 'n1',
-          userId: 'demo1',
-          type: 'rating',
-          message: 'Sarah Johnson rated your "Photography Portfolio Website" post 5 stars!',
-          read: false,
-          createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-          relatedId: 'p1'
-        },
-        {
-          id: 'n2',
-          userId: 'demo2',
-          type: 'follow',
-          message: 'Mike Chen started following you!',
-          read: false,
-          createdAt: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(),
-          relatedId: 'demo3'
-        },
-        {
-          id: 'n3',
-          userId: 'demo3',
-          type: 'review',
-          message: 'New review added to Tesla Model 3 that you follow',
-          read: true,
-          createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-          relatedId: '3'
+        if (notificationsResponse.ok) {
+          const notificationsData = await notificationsResponse.json();
+          setNotifications(notificationsData);
         }
-      ];
-      setNotifications(sampleNotifications);
-      localStorage.setItem('jachai_notifications', JSON.stringify(sampleNotifications));
-    }
+      } catch (error) {
+        console.error('Error fetching data from server:', error);
+      }
+    };
+
+    fetchDataFromServer();
   }, []);
 
   const addEntity = (entityData: Omit<Entity, 'id' | 'createdAt'>) => {
