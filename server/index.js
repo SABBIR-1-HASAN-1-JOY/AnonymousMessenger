@@ -6,7 +6,13 @@ const categoryRoutes = require('./routes/categoryRoute.js') ;
 const entityRoutes = require('./routes/entityRoute.js') ;
 const heirarchyRoutes = require('./routes/hierarchyRoute.js') ;
 const userProfileRoute = require('./routes/userProfileRoute.js') ; 
-const userRoutes = require('./routes/userRoute.js') ; 
+const userRoutes = require('./routes/userRoute.js') ;
+const postRoutes = require('./routes/postRoute.js') ;
+const reviewRoutes = require('./routes/reviewRoute.js') ;
+const searchRoutes = require('./routes/searchRoute.js') ;
+const followingRoutes = require('./routes/followingRoute.js') ;
+const voteRoutes = require('./routes/voteRoute.js') ;
+const databaseSetup = require('./setup/databaseSetup.js') ;
 // const entityDetailsRoute = require('./routes/entityDetails.js') ; // Assuming you have this route for entity details
 
 const app = express();
@@ -23,14 +29,14 @@ app.use(cors({
   origin: ['http://localhost:5173', 'http://localhost:3000'],   // allow your frontend
   credentials: true,   // if you are using cookies or auth tokens
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization', 'user-id']
 }));
 app.use(express.json());
 
 // Root route to confirm server is working
 app.get('/', async (req, res) => {
   try {
-    const result = await pool.query('SELECT * = require() reviewable_entity');
+    const result = await pool.query('SELECT * FROM reviewable_entity');
     res.json(result.rows);
   } catch (err) {
     console.error('Error querying database:', err);
@@ -41,7 +47,7 @@ app.get('/', async (req, res) => {
 // Get all products
 app.get('/api/products', async (req, res) => {
   try {
-    const result = await pool.query('SELECT * = require() reviewable_entity');
+    const result = await pool.query('SELECT * FROM reviewable_entity');
     res.json(result.rows);
   } catch (err) {
     console.error(err.message);
@@ -65,7 +71,7 @@ app.post('/api/products', async (req, res) => {
 });
 
 // Get user 
-app.use('/api/users', userRoutes);
+// app.use('/api/users', userRoutes);
 
 // Get the sectors
 app.use('/api/sector', sectorRoutes);
@@ -85,7 +91,33 @@ app.use('/api/hierarchy', heirarchyRoutes);
 //get user profile
 app.use('/api/userProfile', userProfileRoute);
 
+//post routes
+app.use('/api/posts', postRoutes);
 
+//review routes
+app.use('/api/reviews', reviewRoutes);
+
+//search routes
+app.use('/api/search',searchRoutes)
+//following routes
+app.use('/api/users', followingRoutes);
+
+//vote routes
+app.use('/api/votes', voteRoutes);
+
+// Database setup endpoint (for manual setup if needed)
+app.post('/api/setup/vote-table', async (req, res) => {
+  try {
+    await databaseSetup.init();
+    res.json({ message: 'Vote table setup completed successfully' });
+  } catch (error) {
+    console.error('Error setting up vote table:', error);
+    res.status(500).json({ 
+      error: 'Failed to setup vote table', 
+      details: error.message 
+    });
+  }
+});
 
 // Add a new user
 app.post('/api/register', async (req, res) => {
@@ -191,17 +223,37 @@ app.get('/api/test', (req, res) => {
   res.json({ message: 'Server is working!', timestamp: new Date().toISOString() });
 });
 
+// Test endpoint to check review table schema
+app.get('/api/test/review-schema', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT column_name, data_type, is_nullable 
+      FROM information_schema.columns 
+      WHERE table_name = 'review' 
+      ORDER BY ordinal_position
+    `);
+    res.json({ schema: result.rows });
+  } catch (err) {
+    console.error('Error checking schema:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Start the server
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
   (async () => {
     try {
-      // Optionally, you can check the database connection without logging user details
+      // Check the database connection
       await pool.query('SELECT 1');
       console.log('Database connection successful');
+      
+      // Initialize vote system database setup
+      await databaseSetup.init();
+      
     } catch (err) {
-      console.error('Error querying database:', err);
+      console.error('Error during server startup:', err);
     }
   })();
 });

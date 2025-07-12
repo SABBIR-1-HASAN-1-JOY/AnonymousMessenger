@@ -1,5 +1,5 @@
 // services/entityServices.js
-const { getEntityById, getReviewsByEntityId } = require('../queries/entityQueries');
+const { getEntityById, getReviewsByEntityId, insertEntity } = require('../queries/entityQueries');
 
 const getEntityDetails = async (entityId) => {
   try {
@@ -28,4 +28,14 @@ const getEntityReviews = async (entityId) => {
 module.exports = {
   getEntityDetails,
   getEntityReviews
+  ,
+  // Service to create a new entity
+  createEntity: async (entityData) => {
+    try {
+      const newEntity = await insertEntity(entityData);
+      return newEntity;
+    } catch (error) {
+      throw error;
+    }
+  }
 };

@@ -1,5 +1,63 @@
 // controllers/entityControllers.js
-const { getEntityDetails, getEntityReviews } = require('../services/entityServices');
+const { getEntityDetails, getEntityReviews, createEntity: createEntityService } = require('../services/entityServices');
+
+// Controller to create a new entity
+const createEntity = async (req, res) => {
+  try {
+    console.log('=== CREATE ENTITY ENDPOINT HIT ===');
+    console.log('Request body:', req.body);
+    const { name, description, category, picture, ownerId } = req.body;
+    
+    if (!name || !description || !category || !ownerId) {
+      console.log('Missing required fields:', { name: !!name, description: !!description, category: !!category, ownerId: !!ownerId });
+      return res.status(400).json({ error: 'name, description, category, and ownerId are required' });
+    }
+    
+    // Lookup category_id from category name
+    console.log('Looking up category:', category);
+    const catResult = await require('../config/db.js').query(
+      'SELECT category_id FROM category WHERE LOWER(category_name) = LOWER($1)',
+      [category]
+    );
+    console.log('Category lookup result:', catResult.rows);
+    
+    if (catResult.rows.length === 0) {
+      // If category doesn't exist, create it or use a default
+      console.log('Category not found, using default category_id = 1');
+      const category_id = 1; // Use default category or create one
+      
+      const newEntity = await createEntityService({
+        category_id,
+        item_name: name,
+        owner_id: ownerId,
+        description,
+        picture
+      });
+      
+      console.log('Entity created successfully:', newEntity);
+      return res.status(201).json(newEntity);
+    }
+    
+    const category_id = catResult.rows[0].category_id;
+    console.log('Found category_id:', category_id);
+    
+    // Create entity via service
+    const newEntity = await createEntityService({
+      category_id,
+      item_name: name,
+      owner_id: ownerId,
+      description,
+      picture
+    });
+    
+    console.log('Entity created successfully:', newEntity);
+    res.status(201).json(newEntity);
+  } catch (error) {
+    console.error('Error creating entity:', error);
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ error: 'Internal server error', details: error.message });
+  }
+};
 
 const getEntityWithReviews = async (req, res) => {
   try {
@@ -38,7 +96,9 @@ const getEntityWithReviews = async (req, res) => {
       picture: entity.picture || '',
       images: entity.images || [],
       overallRating: parseFloat(entity.average_rating) || 0,
+      overallrating: parseFloat(entity.average_rating) || 0, // Lowercase for consistency
       reviewCount: parseInt(entity.review_count) || reviews.length,
+      reviewcount: parseInt(entity.review_count) || reviews.length, // Lowercase for consistency
       followers: entity.followers || [],
       createdAt: entity.created_at || new Date().toISOString(),
       reviews: reviews.map(review => ({
@@ -46,8 +106,8 @@ const getEntityWithReviews = async (req, res) => {
         user_id: review.user_id,
         userName: review.username,
         username: review.username,
-        rating: review.rating,
-        ratingpoint: review.rating,
+        rating: review.rating || review.ratingpoint,
+        ratingpoint: review.ratingpoint,
         title: review.title || 'Review',
         body: review.body || review.review_text || review.content || review.description || review.comment,
         review_text: review.review_text || review.body || review.content || review.description || review.comment,
@@ -74,5 +134,6 @@ const getEntityWithReviews = async (req, res) => {
 
 
 module.exports = {
-  getEntityWithReviews
+  getEntityWithReviews,
+  createEntity
 };
