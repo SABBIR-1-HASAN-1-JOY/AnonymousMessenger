@@ -19,11 +19,9 @@ export interface Entity {
   sector?: string;
   picture?: string;
   images?: string[];
-  overallRating?: number; // Optional since calculated from reviews
-  overallrating?: number; // Database lowercase version
-  reviewCount?: number; // Optional since calculated from reviews
-  reviewcount?: number; // Database lowercase version
-  followers?: string[]; // Optional
+  overallRating: number;
+  reviewCount: number;
+  followers: string[];
   createdAt: string;
 }
 
@@ -50,66 +48,76 @@ export interface RateMyWorkPost {
   userAvatar?: string;
   title: string;
   description: string;
-  image?: string;
-  ratings: { userId: string; rating: number }[];
-  comments: Comment[];
+  images: string[];
   createdAt: string;
+  likes: number;
+  comments: Comment[];
+  location?: string;
+  tags?: string[];
 }
 
-export interface SimplePost {
+export interface ComparePost {
   id: string;
-  type: 'simple';
+  type: 'comparison';
   userId: string;
   userName: string;
   userAvatar?: string;
-  content: string;
-  image?: string;
-  upvotes: number;
-  downvotes: number;
-  comments: Comment[];
+  title: string;
+  description?: string;
+  entityA: Entity;
+  entityB: Entity;
+  criteria: string[];
+  results?: {
+    entityAScore: number;
+    entityBScore: number;
+    comments: Comment[];
+  };
   createdAt: string;
+  likes: number;
+  comments: Comment[];
 }
 
-export type Post = RateMyWorkPost | SimplePost;
+export type Post = RateMyWorkPost | ComparePost;
 
 export interface Comment {
   id: string;
-  userId?: string;
-  userName?: string;
+  userId: string;
+  userName: string;
   userAvatar?: string;
-  content: string;
-  isAnonymous: boolean;
+  text: string;
   createdAt: string;
+  likes: number;
+}
+
+export interface Category {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+  color: string;
+  entityCount: number;
 }
 
 export interface Notification {
   id: string;
   userId: string;
-  type: 'comment' | 'rating' | 'follow' | 'review';
+  type: 'like' | 'comment' | 'follow' | 'review' | 'mention';
+  title: string;
   message: string;
-  read: boolean;
+  relatedId?: string; // ID of the related entity (post, review, etc.)
+  relatedType?: 'post' | 'review' | 'entity' | 'user';
+  isRead: boolean;
   createdAt: string;
-  relatedId?: string;
+  actionUrl?: string;
 }
 
-export const categories = [
-  'Electronics',
-  'Restaurants',
-  'Travel',
-  'Entertainment',
-  'Healthcare',
-  'Education',
-  'Fashion',
-  'Sports',
-  'Books',
-  'Movies',
-  'Music',
-  'Software',
-  'Games',
-  'Home & Garden',
-  'Beauty',
-  'Automotive',
-  'Real Estate',
-  'Financial Services',
-  'Other'
-];
+export interface SearchResult {
+  id: string;
+  type: 'entity' | 'user' | 'post';
+  title: string;
+  description: string;
+  image?: string;
+  category?: string;
+  rating?: number;
+  createdAt: string;
+}

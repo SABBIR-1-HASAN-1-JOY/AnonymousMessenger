@@ -35,6 +35,8 @@ function App() {
               <Route path="/create-post" element={<CreatePost />} />
               <Route path="/feed" element={<Feed />} />
               <Route path="/profile" element={<Profile />} />
+              <Route path="/profile/:id" element={<Profile />} />
+              <Route path="/profile/:id" element={<Profile />} />
               <Route path="/notifications" element={<Notifications />} />
               <Route path="/search" element={<SearchResults />} />
             </Route>

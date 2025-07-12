@@ -16,7 +16,9 @@ interface EntityDetailData {
   picture?: string;
   images?: string[];
   overallRating: number;
+  overallrating?: number; // Database lowercase version
   reviewCount: number;
+  reviewcount?: number; // Database lowercase version
   followers: string[];
   createdAt: string;
   reviews?: any[];
@@ -234,14 +236,14 @@ const EntityDetail: React.FC = () => {
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center">
                     <div className="text-4xl font-bold text-gray-900 mr-3">
-                      {entity?.overallRating?.toFixed(1)}
+                      {(entity?.overallrating || entity?.overallRating || 0).toFixed(1)}
                     </div>
                     <div>
                       <div className="flex items-center mb-1">
-                        {renderStars(Math.round(entity?.overallRating))}
+                        {renderStars(Math.round(entity?.overallrating || entity?.overallRating || 0))}
                       </div>
                       <div className="text-sm text-gray-600">
-                        Based on {entity?.reviewCount} reviews
+                        Based on {entity?.reviewcount || entity?.reviewCount || 0} reviews
                       </div>
                     </div>
                   </div>

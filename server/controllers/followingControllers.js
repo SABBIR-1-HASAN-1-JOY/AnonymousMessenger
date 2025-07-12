@@ -10,10 +10,10 @@ const {
 const followUser = async (req, res) => {
   try {
     console.log('=== FOLLOW USER ENDPOINT HIT ===');
-    const { userId } = req.params; // The user to follow
-    const { followerId } = req.body; // The user who is following
+    const { userId } = req.params; // The user to follow (following_id)
+    const { followerId } = req.body; // The user who is following (follower_id)
     
-    console.log('Following request:', { followerId, followedId: userId });
+    console.log('Following request:', { followerId, followingId: userId });
     
     if (!followerId || !userId) {
       return res.status(400).json({ error: 'Follower ID and User ID are required' });
@@ -43,10 +43,10 @@ const followUser = async (req, res) => {
 const unfollowUser = async (req, res) => {
   try {
     console.log('=== UNFOLLOW USER ENDPOINT HIT ===');
-    const { userId } = req.params; // The user to unfollow
-    const { followerId } = req.body; // The user who is unfollowing
+    const { userId } = req.params; // The user to unfollow (following_id)
+    const { followerId } = req.body; // The user who is unfollowing (follower_id)
     
-    console.log('Unfollowing request:', { followerId, followedId: userId });
+    console.log('Unfollowing request:', { followerId, followingId: userId });
     
     if (!followerId || !userId) {
       return res.status(400).json({ error: 'Follower ID and User ID are required' });
@@ -72,10 +72,10 @@ const unfollowUser = async (req, res) => {
 const checkFollowStatus = async (req, res) => {
   try {
     console.log('=== CHECK FOLLOW STATUS ENDPOINT HIT ===');
-    const { userId } = req.params;
-    const { followerId } = req.query;
+    const { userId } = req.params; // The user being checked (following_id)
+    const { followerId } = req.query; // The user who might be following (follower_id)
     
-    console.log('Checking follow status:', { followerId, followedId: userId });
+    console.log('Checking follow status:', { followerId, followingId: userId });
     
     if (!followerId || !userId) {
       return res.status(400).json({ error: 'Follower ID and User ID are required' });

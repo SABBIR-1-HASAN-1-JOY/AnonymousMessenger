@@ -2,23 +2,23 @@
 const pool = require('../config/db.js');
 
 // Follow a user
-const followUser = async (followerId, followedId) => {
+const followUser = async (followerId, followingId) => {
   try {
     // Check if already following
     const existingFollow = await pool.query(`
-      SELECT * FROM following 
-      WHERE follower_id = $1 AND followed_id = $2
-    `, [followerId, followedId]);
+      SELECT * FROM user_follow 
+      WHERE follower_id = $1 AND following_id = $2
+    `, [followerId, followingId]);
     
     if (existingFollow.rows.length > 0) {
       throw new Error('Already following this user');
     }
     
     const result = await pool.query(`
-      INSERT INTO following (follower_id, followed_id, created_at)
+      INSERT INTO user_follow (follower_id, following_id, followed_at)
       VALUES ($1, $2, NOW())
       RETURNING *
-    `, [followerId, followedId]);
+    `, [followerId, followingId]);
     
     return result.rows[0];
   } catch (error) {
@@ -28,13 +28,13 @@ const followUser = async (followerId, followedId) => {
 };
 
 // Unfollow a user
-const unfollowUser = async (followerId, followedId) => {
+const unfollowUser = async (followerId, followingId) => {
   try {
     const result = await pool.query(`
-      DELETE FROM following 
-      WHERE follower_id = $1 AND followed_id = $2
+      DELETE FROM user_follow 
+      WHERE follower_id = $1 AND following_id = $2
       RETURNING *
-    `, [followerId, followedId]);
+    `, [followerId, followingId]);
     
     if (result.rows.length === 0) {
       throw new Error('Not following this user');
@@ -48,12 +48,12 @@ const unfollowUser = async (followerId, followedId) => {
 };
 
 // Check if user is following another user
-const isFollowing = async (followerId, followedId) => {
+const isFollowing = async (followerId, followingId) => {
   try {
     const result = await pool.query(`
-      SELECT * FROM following 
-      WHERE follower_id = $1 AND followed_id = $2
-    `, [followerId, followedId]);
+      SELECT * FROM user_follow 
+      WHERE follower_id = $1 AND following_id = $2
+    `, [followerId, followingId]);
     
     return result.rows.length > 0;
   } catch (error) {
@@ -71,11 +71,11 @@ const getFollowers = async (userId) => {
         u.username,
         u.profile_picture,
         u.bio,
-        f.created_at as followed_at
-      FROM following f
+        f.followed_at
+      FROM user_follow f
       JOIN "user" u ON f.follower_id = u.user_id
-      WHERE f.followed_id = $1
-      ORDER BY f.created_at DESC
+      WHERE f.following_id = $1
+      ORDER BY f.followed_at DESC
     `, [userId]);
     
     return result.rows;
@@ -94,11 +94,11 @@ const getFollowing = async (userId) => {
         u.username,
         u.profile_picture,
         u.bio,
-        f.created_at as followed_at
-      FROM following f
-      JOIN "user" u ON f.followed_id = u.user_id
+        f.followed_at
+      FROM user_follow f
+      JOIN "user" u ON f.following_id = u.user_id
       WHERE f.follower_id = $1
-      ORDER BY f.created_at DESC
+      ORDER BY f.followed_at DESC
     `, [userId]);
     
     return result.rows;

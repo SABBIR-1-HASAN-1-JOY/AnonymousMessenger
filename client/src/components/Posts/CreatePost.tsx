@@ -1,19 +1,21 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Camera, FileText, Star } from 'lucide-react';
+import { ArrowLeft, FileText, Star } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { useAuth } from '../../context/AuthContext';
+import { SimplePost, RateMyWorkPost } from '../../types';
 
 const CreatePost: React.FC = () => {
   const navigate = useNavigate();
   const { addPost } = useApp();
   const { user } = useAuth();
   const [postType, setPostType] = useState<'simple' | 'rate-my-work'>('simple');
-  const [formData, setFormData] = useState({
-    content: '',
+  const [simplePostData, setSimplePostData] = useState({
+    content: ''
+  });
+  const [rateMyWorkData, setRateMyWorkData] = useState({
     title: '',
-    description: '',
-    image: ''
+    description: ''
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -31,34 +33,40 @@ const CreatePost: React.FC = () => {
           type: 'simple',
           userId: user.id,
           userName: user.displayName,
-          content: formData.content,
-          image: formData.image || undefined,
+          content: simplePostData.content,
           upvotes: 0,
           downvotes: 0,
           comments: []
-        });
+        } as Omit<SimplePost, 'id' | 'createdAt'>);
       } else {
         await addPost({
           type: 'rate-my-work',
           userId: user.id,
           userName: user.displayName,
-          title: formData.title,
-          description: formData.description,
-          image: formData.image || undefined,
+          title: rateMyWorkData.title,
+          description: rateMyWorkData.description,
           ratings: [],
           comments: []
-        });
+        } as Omit<RateMyWorkPost, 'id' | 'createdAt'>);
       }
       navigate('/feed');
     } catch (err) {
+      console.error('Error creating post:', err);
       setError('Failed to create post. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    setFormData(prev => ({
+  const handleSimplePostChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    setSimplePostData(prev => ({
+      ...prev,
+      [e.target.name]: e.target.value
+    }));
+  };
+
+  const handleRateMyWorkChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    setRateMyWorkData(prev => ({
       ...prev,
       [e.target.name]: e.target.value
     }));
@@ -146,8 +154,8 @@ const CreatePost: React.FC = () => {
                 <textarea
                   id="content"
                   name="content"
-                  value={formData.content}
-                  onChange={handleChange}
+                  value={simplePostData.content}
+                  onChange={handleSimplePostChange}
                   required
                   rows={6}
                   placeholder="Share your thoughts..."
@@ -165,8 +173,8 @@ const CreatePost: React.FC = () => {
                     type="text"
                     id="title"
                     name="title"
-                    value={formData.title}
-                    onChange={handleChange}
+                    value={rateMyWorkData.title}
+                    onChange={handleRateMyWorkChange}
                     required
                     placeholder="Give your work a title"
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
@@ -180,8 +188,8 @@ const CreatePost: React.FC = () => {
                   <textarea
                     id="description"
                     name="description"
-                    value={formData.description}
-                    onChange={handleChange}
+                    value={rateMyWorkData.description}
+                    onChange={handleRateMyWorkChange}
                     required
                     rows={6}
                     placeholder="Describe your work and what kind of feedback you're looking for..."
@@ -191,8 +199,8 @@ const CreatePost: React.FC = () => {
               </>
             )}
 
-            {/* Image URL */}
-            <div>
+            {/* Image URL - Commented out as not supported in current database schema */}
+            {/* <div>
               <label htmlFor="image" className="block text-sm font-medium text-gray-700 mb-2">
                 Image URL (Optional)
               </label>
@@ -200,15 +208,15 @@ const CreatePost: React.FC = () => {
                 type="url"
                 id="image"
                 name="image"
-                value={formData.image}
-                onChange={handleChange}
+                value=""
+                onChange={() => {}}
                 placeholder="https://example.com/image.jpg"
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
               />
-            </div>
+            </div> */}
 
-            {/* Photo Upload Placeholder */}
-            <div>
+            {/* Photo Upload Placeholder - Commented out as not supported in current database schema */}
+            {/* <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Upload Photo (Coming Soon)
               </label>
@@ -218,7 +226,7 @@ const CreatePost: React.FC = () => {
                   Photo upload feature will be available soon
                 </p>
               </div>
-            </div>
+            </div> */}
 
             {/* Submit Buttons */}
             <div className="flex gap-4 pt-6">
@@ -231,7 +239,7 @@ const CreatePost: React.FC = () => {
               </button>
               <button
                 type="submit"
-                disabled={loading || (postType === 'simple' ? !formData.content.trim() : !formData.title.trim() || !formData.description.trim())}
+                disabled={loading || (postType === 'simple' ? !simplePostData.content.trim() : !rateMyWorkData.title.trim() || !rateMyWorkData.description.trim())}
                 className="flex-1 px-6 py-3 bg-gradient-to-r from-blue-600 to-teal-600 text-white rounded-lg font-medium hover:from-blue-700 hover:to-teal-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:scale-105"
               >
                 {loading ? 'Publishing...' : 'Publish Post'}

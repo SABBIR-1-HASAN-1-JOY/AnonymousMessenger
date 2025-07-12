@@ -1,16 +1,28 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { Star, Filter, Search, Plus } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { useAuth } from '../../context/AuthContext';
-import { categories } from '../../types';
 
 const EntityList: React.FC = () => {
-  const { entities, searchEntities } = useApp();
+  const { entities, searchEntities, getEntitiesByCategory, categories } = useApp();
   const { user } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('All');
-  const [sortBy, setSortBy] = useState('rating');
+  const [sortBy, setSortBy] = useState('rating-desc');
+  
+  // Get category from URL params, default to 'All'
+  const selectedCategory = searchParams.get('category') || 'All';
+
+  // Update URL when category changes
+  const handleCategoryChange = (category: string) => {
+    if (category === 'All') {
+      searchParams.delete('category');
+    } else {
+      searchParams.set('category', category);
+    }
+    setSearchParams(searchParams);
+  };
 
   const filteredEntities = React.useMemo(() => {
     let filtered = entities;
@@ -20,27 +32,46 @@ const EntityList: React.FC = () => {
     }
 
     if (selectedCategory !== 'All') {
-      filtered = filtered.filter(entity => entity.category === selectedCategory);
+      filtered = getEntitiesByCategory(selectedCategory);
+      // If we also have a search query, filter the category results
+      if (searchQuery) {
+        filtered = filtered.filter(entity => 
+          entity.item_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          entity.description.toLowerCase().includes(searchQuery.toLowerCase())
+        );
+      }
     }
 
     // Sort entities
     filtered.sort((a, b) => {
       switch (sortBy) {
-        case 'rating':
-          return b.overallRating - a.overallRating;
-        case 'reviews':
-          return b.reviewCount - a.reviewCount;
-        case 'name':
+        case 'rating-desc':
+          return Number(b.overallrating || b.overallRating || 0) - Number(a.overallrating || a.overallRating || 0);
+        case 'rating-asc':
+          return Number(a.overallrating || a.overallRating || 0) - Number(b.overallrating || b.overallRating || 0);
+        case 'reviews-desc':
+          return Number(b.reviewcount || b.reviewCount || 0) - Number(a.reviewcount || a.reviewCount || 0);
+        case 'reviews-asc':
+          return Number(a.reviewcount || a.reviewCount || 0) - Number(b.reviewcount || b.reviewCount || 0);
+        case 'name-asc':
           return a.item_name.localeCompare(b.item_name);
+        case 'name-desc':
+          return b.item_name.localeCompare(a.item_name);
         case 'newest':
           return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        case 'oldest':
+          return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+        case 'followers-desc':
+          return (b?.followers?.length || 0) - (a?.followers?.length || 0);
+        case 'followers-asc':
+          return (a?.followers?.length || 0) - (b?.followers?.length || 0);
         default:
           return 0;
       }
     });
 
     return filtered;
-  }, [entities, searchQuery, selectedCategory, sortBy, searchEntities]);
+  }, [entities, searchQuery, selectedCategory, sortBy, searchEntities, getEntitiesByCategory]);
 
   const renderStars = (rating: number) => {
     return Array.from({ length: 5 }, (_, i) => (
@@ -98,7 +129,7 @@ const EntityList: React.FC = () => {
             <div className="lg:w-48">
               <select
                 value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value)}
+                onChange={(e) => handleCategoryChange(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="All">All Categories</option>
@@ -117,19 +148,49 @@ const EntityList: React.FC = () => {
                 onChange={(e) => setSortBy(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
-                <option value="rating">Highest Rated</option>
-                <option value="reviews">Most Reviews</option>
-                <option value="name">Alphabetical</option>
-                <option value="newest">Newest</option>
+                <option value="rating-desc">★ Highest Rated</option>
+                <option value="rating-asc">☆ Lowest Rated</option>
+                <option value="reviews-desc">💬 Most Reviews</option>
+                <option value="reviews-asc">💬 Least Reviews</option>
+                <option value="name-asc">🔤 A to Z</option>
+                <option value="name-desc">🔤 Z to A</option>
+                <option value="newest">🆕 Newest First</option>
+                <option value="oldest">📅 Oldest First</option>
+                <option value="followers-desc">👥 Most Followers</option>
+                <option value="followers-asc">👤 Least Followers</option>
               </select>
             </div>
           </div>
         </div>
 
         {/* Results */}
-        <div className="mb-6">
-          <p className="text-gray-600">
+        <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-gray-600 mb-2 sm:mb-0">
             Showing {filteredEntities.length} of {entities.length} entities
+            {selectedCategory !== 'All' && (
+              <span className="ml-2 text-blue-600 font-medium">
+                in {selectedCategory}
+              </span>
+            )}
+            {searchQuery && (
+              <span className="ml-2 text-green-600 font-medium">
+                matching "{searchQuery}"
+              </span>
+            )}
+          </p>
+          <p className="text-sm text-gray-500">
+            Sorted by {
+              sortBy === 'rating-desc' ? 'highest rated' :
+              sortBy === 'rating-asc' ? 'lowest rated' :
+              sortBy === 'reviews-desc' ? 'most reviews' :
+              sortBy === 'reviews-asc' ? 'least reviews' :
+              sortBy === 'name-asc' ? 'A to Z' :
+              sortBy === 'name-desc' ? 'Z to A' :
+              sortBy === 'newest' ? 'newest first' :
+              sortBy === 'oldest' ? 'oldest first' :
+              sortBy === 'followers-desc' ? 'most followers' :
+              sortBy === 'followers-asc' ? 'least followers' : 'default'
+            }
           </p>
         </div>
 
@@ -154,9 +215,9 @@ const EntityList: React.FC = () => {
                     {entity.category}
                   </span>
                   <div className="flex items-center">
-                    {renderStars(Math.round(entity.overallRating))}
+                    {renderStars(Math.round(Number(entity.overallrating || entity.overallRating || 0)))}
                     <span className="ml-1 text-sm text-gray-600">
-                      {entity?.overallRating?.toFixed(1)}
+                      {Number(entity.overallrating || entity.overallRating || 0).toFixed(1)}
                     </span>
                   </div>
                 </div>
@@ -167,8 +228,8 @@ const EntityList: React.FC = () => {
                   {entity.description}
                 </p>
                 <div className="flex items-center justify-between text-sm text-gray-500">
-                  <span>{entity.reviewCount} reviews</span>
-                  <span>{entity?.followers?.length} followers</span>
+                  <span>{Number(entity.reviewcount || entity.reviewCount || 0)} reviews</span>
+                  <span>{entity?.followers?.length || 0} followers</span>
                 </div>
               </div>
             </Link>

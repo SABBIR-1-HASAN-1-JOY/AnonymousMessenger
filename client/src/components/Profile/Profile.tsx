@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, MapPin, Link as LinkIcon, Edit, Star, MessageSquare, Users, Heart, Loader } from 'lucide-react';
+import { useParams } from 'react-router-dom';
+import { Calendar, MapPin, Edit, Star, MessageSquare, Users, Heart, Loader, UserPlus, UserMinus, MessageCircle } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useApp } from '../../context/AppContext';
+import VoteComponent from '../common/VoteComponent';
 
 interface Review {
   review_id: number;
@@ -42,8 +44,11 @@ interface UserProfile {
 
 const Profile: React.FC = () => {
   const { user, updateProfile } = useAuth();
+  const { id: paramId } = useParams<{ id?: string }>();
+  const profileId = paramId || user?.id?.toString();
   const { entities } = useApp();
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [isFollowing, setIsFollowing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -52,6 +57,9 @@ const Profile: React.FC = () => {
     displayName: user?.displayName || '',
     bio: user?.bio || ''
   });
+
+  // Check if this is the current user's own profile
+  const isOwnProfile = !paramId || paramId === user?.id?.toString();
 
   // Fetch user profile from server
   useEffect(() => {
@@ -65,8 +73,8 @@ const Profile: React.FC = () => {
         setLoading(true);
         setError('');
         
-        console.log('Fetching user profile for user ID:', user.id);
-        const response = await fetch(`http://localhost:3000/api/userProfile/${user.id}`, {
+        console.log('Fetching user profile for user ID:', profileId);
+        const response = await fetch(`http://localhost:3000/api/userProfile/${profileId}`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
@@ -86,8 +94,6 @@ const Profile: React.FC = () => {
         
         const profileData = await response.json();
         console.log('Profile data received:', profileData);
-        console.log('Follower count from server:', profileData.followerCount);
-        console.log('Following count from server:', profileData.followingCount);
         setUserProfile(profileData);
         
         // Update edit data with server data
@@ -104,8 +110,31 @@ const Profile: React.FC = () => {
       }
     };
 
+    const fetchFollowStatus = async () => {
+      // Check follow status for other profiles
+      if (profileId && user?.id && profileId !== user.id.toString()) {
+        try {
+          console.log('Checking follow status for:', { followerId: user.id, followingId: profileId });
+          const response = await fetch(`http://localhost:3000/api/users/${profileId}/status?followerId=${user.id}`);
+          
+          if (response.ok) {
+            const data = await response.json();
+            console.log('Follow status response:', data);
+            setIsFollowing(data.isFollowing);
+          } else {
+            console.log('Failed to fetch follow status:', response.status);
+            setIsFollowing(false); // Default to not following if check fails
+          }
+        } catch (error) {
+          console.error('Error checking follow status:', error);
+          setIsFollowing(false); // Default to not following if check fails
+        }
+      }
+    };
+
     fetchUserProfile();
-  }, [user?.id]);
+    fetchFollowStatus();
+  }, [profileId, user?.id]);
 
   // Update user profile on server
   const handleSaveProfile = async () => {
@@ -144,6 +173,82 @@ const Profile: React.FC = () => {
     } catch (err) {
       console.error('Error updating user profile:', err);
       setError('Failed to update profile. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleFollow = async () => {
+    if (!user || !profileId) return;
+    
+    try {
+      setLoading(true);
+      console.log('Following user:', { followerId: user.id, followingId: profileId });
+      
+      const response = await fetch(`http://localhost:3000/api/users/${profileId}/follow`, {
+        method: 'POST', 
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ followerId: user.id })
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        console.log('Follow successful:', result);
+        setIsFollowing(true);
+        
+        // Update follower count if we have profile data
+        if (userProfile) {
+          setUserProfile(prev => prev ? {
+            ...prev,
+            followerCount: (prev.followerCount || 0) + 1
+          } : prev);
+        }
+      } else {
+        const error = await response.json();
+        console.error('Follow failed:', error);
+        setError(error.error || 'Failed to follow user');
+      }
+    } catch (err) {
+      console.error('Error following user:', err);
+      setError('Failed to follow user. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUnfollow = async () => {
+    if (!user || !profileId) return;
+    
+    try {
+      setLoading(true);
+      console.log('Unfollowing user:', { followerId: user.id, followingId: profileId });
+      
+      const response = await fetch(`http://localhost:3000/api/users/${profileId}/unfollow`, {
+        method: 'DELETE', 
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ followerId: user.id })
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        console.log('Unfollow successful:', result);
+        setIsFollowing(false);
+        
+        // Update follower count if we have profile data
+        if (userProfile) {
+          setUserProfile(prev => prev ? {
+            ...prev,
+            followerCount: Math.max((prev.followerCount || 0) - 1, 0)
+          } : prev);
+        }
+      } else {
+        const error = await response.json();
+        console.error('Unfollow failed:', error);
+        setError(error.error || 'Failed to unfollow user');
+      }
+    } catch (err) {
+      console.error('Error unfollowing user:', err);
+      setError('Failed to unfollow user. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -285,32 +390,56 @@ const Profile: React.FC = () => {
                   </div>
                   
                   <div className="flex gap-2">
-                    {isEditing ? (
-                      <>
+                    {isOwnProfile ? (
+                      // Show edit profile for own profile
+                      isEditing ? (
+                        <>
+                          <button
+                            onClick={() => setIsEditing(false)}
+                            disabled={loading}
+                            className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            onClick={handleSaveProfile}
+                            disabled={loading}
+                            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                          >
+                            {loading ? 'Saving...' : 'Save'}
+                          </button>
+                        </>
+                      ) : (
                         <button
-                          onClick={() => setIsEditing(false)}
+                          onClick={() => setIsEditing(true)}
                           disabled={loading}
-                          className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+                          className="flex items-center px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
                         >
-                          Cancel
+                          <Edit className="w-4 h-4 mr-2" />
+                          Edit Profile
                         </button>
-                        <button
-                          onClick={handleSaveProfile}
-                          disabled={loading}
-                          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
-                        >
-                          {loading ? 'Saving...' : 'Save'}
-                        </button>
-                      </>
+                      )
                     ) : (
-                      <button
-                        onClick={() => setIsEditing(true)}
-                        disabled={loading}
-                        className="flex items-center px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
-                      >
-                        <Edit className="w-4 h-4 mr-2" />
-                        Edit Profile
-                      </button>
+                      // Show follow/unfollow for other users' profiles
+                      isFollowing ? (
+                        <button
+                          onClick={handleUnfollow}
+                          disabled={loading}
+                          className="flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50"
+                        >
+                          <UserMinus className="w-4 h-4 mr-2" />
+                          {loading ? 'Unfollowing...' : 'Unfollow'}
+                        </button>
+                      ) : (
+                        <button
+                          onClick={handleFollow}
+                          disabled={loading}
+                          className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                        >
+                          <UserPlus className="w-4 h-4 mr-2" />
+                          {loading ? 'Following...' : 'Follow'}
+                        </button>
+                      )
                     )}
                   </div>
                 </div>
@@ -422,6 +551,20 @@ const Profile: React.FC = () => {
                           <h3 className="font-semibold text-gray-900 mb-2">{post.post_title}</h3>
                         )}
                         <p className="text-gray-700 mb-3">{post.post_text}</p>
+                        
+                        {/* Voting and Comments Section */}
+                        <div className="flex items-center justify-between border-t pt-3 mt-3">
+                          <VoteComponent 
+                            entityType="post" 
+                            entityId={parseInt(post.post_id.toString())}
+                            className="flex-1"
+                          />
+                          <div className="flex items-center text-sm text-gray-500">
+                            <MessageCircle className="w-4 h-4 mr-1" />
+                            <span>0 comments</span>
+                          </div>
+                        </div>
+                        
                         <div className="text-xs text-gray-400 mt-2">
                           Posted on {new Date(post.created_at).toLocaleDateString()}
                         </div>
@@ -446,12 +589,21 @@ const Profile: React.FC = () => {
                       return (
                         <div key={review.review_id} className="border border-gray-200 rounded-lg p-4">
                           <div className="flex items-center justify-between mb-2">
-                            <h3 className="font-semibold text-gray-900">Review for {entity?.name || 'an entity'}</h3>
+                            <h3 className="font-semibold text-gray-900">Review for {entity?.name || entity?.item_name || 'an entity'}</h3>
                             <div className="flex items-center">
                               {renderStars(review.ratingpoint)}
                             </div>
                           </div>
                           <p className="text-gray-700 mb-3">{review.review_text}</p>
+                          
+                          {/* Voting Section */}
+                          <div className="border-t pt-3 mb-3">
+                            <VoteComponent 
+                              entityType="review" 
+                              entityId={parseInt(review.review_id.toString())}
+                            />
+                          </div>
+                          
                           <div className="text-xs text-gray-400">
                             {new Date(review.created_at).toLocaleDateString()}
                           </div>

@@ -1,29 +1,74 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Heart, MessageCircle, Star, ThumbsUp, ThumbsDown, Calendar, User } from 'lucide-react';
+import { MessageCircle, Star, Calendar, User } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { useAuth } from '../../context/AuthContext';
+import VoteComponent from '../common/VoteComponent';
 
 const Feed: React.FC = () => {
   const { posts, reviews, entities } = useApp();
   const { user } = useAuth();
   const [filter, setFilter] = useState<'all' | 'posts' | 'reviews'>('all');
 
-  // Combine posts and reviews for the feed
+  // Combine posts and reviews for the feed based on user's follows and activities
   const feedItems = React.useMemo(() => {
+    if (!user) return [];
+    
     let items: any[] = [];
 
     if (filter === 'all' || filter === 'posts') {
-      items = [...items, ...posts.map(post => ({ ...post, itemType: 'post' }))];
+      // 1. User's own posts (always included)
+      const userPosts = posts.filter(post => 
+        post.userId === user.id
+      );
+      
+      // 2. Posts from users that the current user follows
+      const followedUsersPosts = posts.filter(post => 
+        user.following && user.following.includes(post.userId)
+      );
+      
+      items = [...items, 
+        ...userPosts.map(post => ({ ...post, itemType: 'post' })),
+        ...followedUsersPosts.map(post => ({ ...post, itemType: 'post' }))
+      ];
     }
 
     if (filter === 'all' || filter === 'reviews') {
-      items = [...items, ...reviews.map(review => ({ ...review, itemType: 'review' }))];
+      // 3. User's own reviews (always included)
+      const userReviews = reviews.filter(review => 
+        review.userId === user.id
+      );
+      
+      // 4. Reviews by users that the current user follows
+      const followedUsersReviews = reviews.filter(review => 
+        user.following && user.following.includes(review.userId)
+      );
+      
+      // 5. Reviews of entities that the user has reviewed (community activity on entities they care about)
+      const userReviewedEntityIds = reviews
+        .filter(review => review.userId === user.id)
+        .map(review => review.entityId);
+      
+      const reviewsOnUserReviewedEntities = reviews.filter(review => 
+        userReviewedEntityIds.includes(review.entityId) && 
+        review.userId !== user.id // Exclude user's own reviews (already included above)
+      );
+      
+      items = [...items, 
+        ...userReviews.map(review => ({ ...review, itemType: 'review' })),
+        ...followedUsersReviews.map(review => ({ ...review, itemType: 'review' })),
+        ...reviewsOnUserReviewedEntities.map(review => ({ ...review, itemType: 'review' }))
+      ];
     }
 
-    // Sort by creation date
-    return items.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-  }, [posts, reviews, filter]);
+    // Remove duplicates (in case of overlapping criteria)
+    const uniqueItems = items.filter((item, index, self) => 
+      index === self.findIndex(i => i.itemType === item.itemType && i.id === item.id)
+    );
+
+    // Sort by creation date (recent first)
+    return uniqueItems.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }, [posts, reviews, filter, user]);
 
   const renderStars = (rating: number) => {
     return Array.from({ length: 5 }, (_, i) => (
@@ -36,9 +81,28 @@ const Feed: React.FC = () => {
     ));
   };
 
-  const getAverageRating = (ratings: { userId: string; rating: number }[]) => {
-    if (ratings.length === 0) return 0;
-    return ratings.reduce((sum, r) => sum + r.rating, 0) / ratings.length;
+  const getRelationshipTag = (item: any) => {
+    if (!user) return null;
+    
+    if (item.userId === user.id) {
+      return { text: 'Your content', color: 'bg-blue-100 text-blue-800' };
+    }
+    
+    if (user.following && user.following.includes(item.userId)) {
+      return { text: 'Following', color: 'bg-green-100 text-green-800' };
+    }
+    
+    if (item.itemType === 'review') {
+      const userReviewedEntityIds = reviews
+        .filter(review => review.userId === user.id)
+        .map(review => review.entityId);
+      
+      if (userReviewedEntityIds.includes(item.entityId)) {
+        return { text: 'Entity you reviewed', color: 'bg-purple-100 text-purple-800' };
+      }
+    }
+    
+    return null;
   };
 
   if (!user) {
@@ -59,9 +123,9 @@ const Feed: React.FC = () => {
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-4">Your Feed</h1>
+          <h1 className="text-3xl font-bold text-gray-900 mb-4">Your Personalized Feed</h1>
           <p className="text-gray-600">
-            Stay updated with posts and reviews from the community
+            See posts and reviews from people you follow, plus activity on entities you've reviewed
           </p>
         </div>
 
@@ -116,7 +180,17 @@ const Feed: React.FC = () => {
                   <div className="ml-4 flex-1">
                     <div className="flex items-center justify-between">
                       <div>
-                        <h3 className="font-semibold text-gray-900">{item.userName}</h3>
+                        <div className="flex items-center gap-2 mb-1">
+                          <h3 className="font-semibold text-gray-900">{item.userName}</h3>
+                          {(() => {
+                            const tag = getRelationshipTag(item);
+                            return tag ? (
+                              <span className={`px-2 py-1 text-xs font-medium rounded-full ${tag.color}`}>
+                                {tag.text}
+                              </span>
+                            ) : null;
+                          })()}
+                        </div>
                         <div className="flex items-center text-sm text-gray-500">
                           <Calendar className="w-4 h-4 mr-1" />
                           {new Date(item.createdAt).toLocaleDateString()}
@@ -148,15 +222,11 @@ const Feed: React.FC = () => {
                           />
                         )}
                         <div className="flex items-center justify-between text-sm text-gray-500">
-                          <div className="flex items-center">
-                            <Star className="w-4 h-4 mr-1" />
-                            <span>
-                              {item.ratings.length > 0 
-                                ? `${getAverageRating(item.ratings).toFixed(1)} (${item.ratings.length} ratings)`
-                                : 'No ratings yet'
-                              }
-                            </span>
-                          </div>
+                          <VoteComponent 
+                            entityType="post" 
+                            entityId={parseInt(item.id.toString())} 
+                            className="flex-1"
+                          />
                           <div className="flex items-center">
                             <MessageCircle className="w-4 h-4 mr-1" />
                             <span>{item.comments.length} comments</span>
@@ -174,16 +244,11 @@ const Feed: React.FC = () => {
                           />
                         )}
                         <div className="flex items-center justify-between text-sm text-gray-500">
-                          <div className="flex items-center space-x-4">
-                            <div className="flex items-center">
-                              <ThumbsUp className="w-4 h-4 mr-1" />
-                              <span>{item.upvotes}</span>
-                            </div>
-                            <div className="flex items-center">
-                              <ThumbsDown className="w-4 h-4 mr-1" />
-                              <span>{item.downvotes}</span>
-                            </div>
-                          </div>
+                          <VoteComponent 
+                            entityType="post" 
+                            entityId={parseInt(item.id.toString())}
+                            className="flex-1"
+                          />
                           <div className="flex items-center">
                             <MessageCircle className="w-4 h-4 mr-1" />
                             <span>{item.comments.length} comments</span>
@@ -196,15 +261,24 @@ const Feed: React.FC = () => {
                   <div>
                     <h4 className="text-lg font-semibold text-gray-900 mb-2">{item.title}</h4>
                     <p className="text-gray-700 mb-4">{item.body}</p>
+                    
+                    {/* Review voting component */}
+                    <div className="mb-4">
+                      <VoteComponent 
+                        entityType="review" 
+                        entityId={parseInt(item.id.toString())}
+                      />
+                    </div>
+                    
                     {(() => {
-                      const entity = entities.find(e => e.id === item.entityId);
+                      const entity = entities.find(e => e.id === item.entityId || e.item_id?.toString() === item.entityId);
                       return entity ? (
                         <Link
-                          to={`/entities/${entity.id}`}
+                          to={`/entities/${entity.item_id || entity.id}`}
                           className="inline-flex items-center text-blue-600 hover:text-blue-700 text-sm font-medium"
                         >
                           <User className="w-4 h-4 mr-1" />
-                          Review for {entity.name}
+                          Review for {entity.name || entity.item_name}
                         </Link>
                       ) : null;
                     })()}
@@ -215,16 +289,16 @@ const Feed: React.FC = () => {
           ) : (
             <div className="text-center py-12">
               <MessageCircle className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No activity yet</h3>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">Your personalized feed is empty</h3>
               <p className="text-gray-600 mb-6">
-                Follow users and entities to see their activity in your feed
+                Follow users to see their posts and reviews, or create your own content to get started
               </p>
               <div className="flex gap-4 justify-center">
                 <Link
                   to="/entities"
                   className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
                 >
-                  Discover Entities
+                  Discover & Review Entities
                 </Link>
                 <Link
                   to="/create-post"

@@ -20,11 +20,10 @@ import {
   DollarSign, 
   MoreHorizontal 
 } from 'lucide-react';
-import { categories } from '../../types';
 import { useApp } from '../../context/AppContext';
 
 const CategoryList: React.FC = () => {
-  const { entities } = useApp();
+  const { entities, categories } = useApp();
 
   const categoryIcons: { [key: string]: React.ReactNode } = {
     'Electronics': <Smartphone className="w-8 h-8" />,
@@ -137,7 +136,7 @@ const CategoryList: React.FC = () => {
             </div>
             <div className="text-center">
               <div className="text-3xl font-bold text-orange-600 mb-2">
-                {(entities.reduce((sum, entity) => sum + entity.overallRating, 0) / entities.length || 0).toFixed(1)}
+                {(entities.reduce((sum, entity) => sum + (entity.overallrating || entity.overallRating || 0), 0) / entities.length || 0).toFixed(1)}
               </div>
               <div className="text-gray-600">Avg Rating</div>
             </div>

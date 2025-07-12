@@ -7,27 +7,27 @@ const {
   getFollowing 
 } = require('../queries/followingQueries');
 
-const createFollowing = async (followerId, followedId) => {
+const createFollowing = async (followerId, followingId) => {
   try {
-    const result = await followUser(followerId, followedId);
+    const result = await followUser(followerId, followingId);
     return result;
   } catch (error) {
     throw error;
   }
 };
 
-const removeFollowing = async (followerId, followedId) => {
+const removeFollowing = async (followerId, followingId) => {
   try {
-    const result = await unfollowUser(followerId, followedId);
+    const result = await unfollowUser(followerId, followingId);
     return result;
   } catch (error) {
     throw error;
   }
 };
 
-const checkIsFollowing = async (followerId, followedId) => {
+const checkIsFollowing = async (followerId, followingId) => {
   try {
-    const result = await isFollowing(followerId, followedId);
+    const result = await isFollowing(followerId, followingId);
     return result;
   } catch (error) {
     throw error;

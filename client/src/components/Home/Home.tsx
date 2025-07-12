@@ -8,13 +8,9 @@ const Home: React.FC = () => {
   const { user } = useAuth();
   const { entities, reviews, posts } = useApp();
 
-  // Debug: Log entity data to see the structure
-  console.log('Entities from AppContext:', entities);
-  console.log('Sample entity:', entities[0]);
-
   // Get featured entities (highest rated)
   const featuredEntities = entities
-    .sort((a, b) => b.overallRating - a.overallRating)
+    .sort((a, b) => Number(b.overallrating || b.overallRating || 0) - Number(a.overallrating || a.overallRating || 0))
     .slice(0, 6);
 
   // Get recent posts
@@ -176,16 +172,16 @@ const Home: React.FC = () => {
                       {entity.category}
                     </span>
                     <div className="flex items-center">
-                      {renderStars(Math.round(entity.overallRating ? entity.overallRating : 0))}
+                      {renderStars(Math.round(Number(entity.overallrating || entity.overallRating || 0)))}
                       <span className="ml-2 text-sm text-gray-600">
-                        {entity.overallRating ? entity.overallRating.toFixed(1) : '0.0'}
+                        {Number(entity.overallrating || entity.overallRating || 0).toFixed(1)}
                       </span>
                     </div>
                   </div>
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">{entity.item_name || entity.name}</h3>
                   <p className="text-gray-600 text-sm">{entity.description}</p>
                   <div className="mt-4 text-sm text-gray-500">
-                    {entity.reviewCount} reviews
+                    {Number(entity.reviewcount || entity.reviewCount || 0)} reviews
                   </div>
                 </div>
               </Link>

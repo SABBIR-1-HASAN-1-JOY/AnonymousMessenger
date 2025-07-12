@@ -3,11 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Camera } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { useAuth } from '../../context/AuthContext';
-import { categories } from '../../types';
 
 const CreateEntity: React.FC = () => {
   const navigate = useNavigate();
-  const { addEntity } = useApp();
+  const { categories } = useApp(); // Get categories from context
   const { user } = useAuth();
   const [formData, setFormData] = useState({
     name: '',
@@ -27,19 +26,29 @@ const CreateEntity: React.FC = () => {
     setError('');
 
     try {
-      await addEntity({
-        name: formData.name,
-        description: formData.description,
-        category: formData.category,
-        sector: formData.sector || undefined,
-        picture: formData.picture || undefined,
-        overallRating: 0,
-        reviewCount: 0,
-        followers: []
+      // Create entity via backend
+      console.log('Creating entity with data:', formData);
+      const response = await fetch('http://localhost:3000/api/entities/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: formData.name,
+          description: formData.description,
+          category: formData.category,
+          picture: formData.picture || undefined,
+          ownerId: user.id || null
+        })
       });
-      navigate('/entities');
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(`HTTP error! status: ${response.status}, message: ${errorData.error || 'Unknown error'}`);
+      }
+      const newEntity = await response.json();
+      navigate(`/entities/${newEntity.item_id}`);
     } catch (err) {
-      setError('Failed to create entity. Please try again.');
+      console.error('Error creating entity:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
+      setError(`Failed to create entity: ${errorMessage}`);
     } finally {
       setLoading(false);
     }
