@@ -53,6 +53,7 @@ const Profile: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [activeTab, setActiveTab] = useState<'posts' | 'reviews' | 'following'>('posts');
+  const [followingUsers, setFollowingUsers] = useState<any[]>([]);
   const [editData, setEditData] = useState({
     displayName: user?.displayName || '',
     bio: user?.bio || ''
@@ -132,8 +133,28 @@ const Profile: React.FC = () => {
       }
     };
 
+    const fetchFollowingUsers = async () => {
+      try {
+        console.log('Fetching following users for user:', profileId);
+        const response = await fetch(`http://localhost:3000/api/users/${profileId}/following-users`);
+        
+        if (response.ok) {
+          const followingData = await response.json();
+          console.log('Following users response:', followingData);
+          setFollowingUsers(followingData);
+        } else {
+          console.log('Failed to fetch following users:', response.status);
+          setFollowingUsers([]);
+        }
+      } catch (error) {
+        console.error('Error fetching following users:', error);
+        setFollowingUsers([]);
+      }
+    };
+
     fetchUserProfile();
     fetchFollowStatus();
+    fetchFollowingUsers();
   }, [profileId, user?.id]);
 
   // Update user profile on server
@@ -585,7 +606,12 @@ const Profile: React.FC = () => {
                   userReviews
                     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
                     .map((review) => {
-                      const entity = entities.find(e => e.id === review.item_id.toString());
+                      const entity = entities.find(e => 
+                        e.id === review.item_id.toString() || 
+                        e.item_id === review.item_id.toString() ||
+                        parseInt(e.id || '0') === review.item_id ||
+                        parseInt(e.item_id || '0') === review.item_id
+                      );
                       return (
                         <div key={review.review_id} className="border border-gray-200 rounded-lg p-4">
                           <div className="flex items-center justify-between mb-2">
@@ -620,14 +646,67 @@ const Profile: React.FC = () => {
             )}
 
             {activeTab === 'following' && (
-              <div className="text-center py-8">
-                <Heart className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-600">
-                  You are following {followingCount} entities.
-                </p>
-                <p className="text-sm text-gray-500 mt-2">
-                  A detailed list of followed entities is coming soon!
-                </p>
+              <div className="space-y-6">
+                {followingUsers.length > 0 ? (
+                  followingUsers.map((followedUser) => {
+                    return (
+                      <div key={followedUser.following_id || followedUser.user_id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-4">
+                            <div className="w-16 h-16 bg-gray-200 rounded-full overflow-hidden">
+                              <img
+                                src={followedUser.profile_picture || `https://ui-avatars.com/api/?name=${encodeURIComponent(followedUser.username || 'User')}&background=6366f1&color=fff`}
+                                alt={followedUser.username || 'User'}
+                                className="w-full h-full object-cover"
+                              />
+                            </div>
+                            <div>
+                              <h3 className="font-semibold text-gray-900">
+                                {followedUser.username || 'Unknown User'}
+                              </h3>
+                              <p className="text-sm text-gray-600">
+                                {followedUser.email || 'No email'}
+                              </p>
+                              {followedUser.bio && (
+                                <p className="text-sm text-gray-500 mt-1">
+                                  {followedUser.bio}
+                                </p>
+                              )}
+                              <div className="flex items-center mt-2 text-xs text-gray-400">
+                                <Users className="w-3 h-3 mr-1" />
+                                <span>{followedUser.followerCount || 0} followers</span>
+                                <span className="mx-2">•</span>
+                                <MessageSquare className="w-3 h-3 mr-1" />
+                                <span>{followedUser.post_count || 0} posts</span>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-xs text-gray-400 mb-2">
+                              Following since {new Date(followedUser.followed_at).toLocaleDateString()}
+                            </p>
+                            <button
+                              onClick={() => window.location.href = `/profile/${followedUser.following_id || followedUser.user_id}`}
+                              className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition-colors"
+                            >
+                              View Profile
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="text-center py-8">
+                    <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                    <p className="text-gray-600">
+                      {isOwnProfile ? "You haven't followed any users yet." : `${displayProfile.username} hasn't followed any users yet.`}
+                    </p>
+                    <p className="text-sm text-gray-500 mt-2">
+                      Follow other users to see them here!
+                    </p>
+                  </div>
+                )}
               </div>
             )}
           </div>

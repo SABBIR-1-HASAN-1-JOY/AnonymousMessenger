@@ -11,23 +11,29 @@ const createReview = async (req, res) => {
     console.log('=== CREATE REVIEW ENDPOINT HIT ===');
     console.log('Request body:', req.body);
     
-    const { userId, itemId, rating, reviewText, title, upvotes, pictures } = req.body;
-    
-    // Validate required fields
-    if (!userId || !itemId || !rating || !reviewText) {
+    const { userId, itemId, rating, reviewText, title, user_id, item_id, ratingpoint, review_text, review_title } = req.body;
+    console.log('Review data:', { userId, itemId, rating, reviewText, title });
+    // Validate required fields - support both naming conventions
+    const finalUserId = userId || user_id;
+    const finalItemId = itemId || item_id;
+    const finalRating = rating || ratingpoint;
+    const finalReviewText = reviewText || review_text;
+    const finalTitle = title || review_title;
+
+    if (!finalUserId || !finalItemId || !finalRating || !finalReviewText) {
       return res.status(400).json({ error: 'User ID, item ID, rating, and review text are required' });
     }
     
-    if (rating < 1 || rating > 5) {
+    if (finalRating < 1 || finalRating > 5) {
       return res.status(400).json({ error: 'Rating must be between 1 and 5' });
     }
     
     const reviewData = {
-      userId,
-      itemId,
-      rating,
-      reviewText,
-      title: title || 'Review'
+      userId: finalUserId,
+      itemId: finalItemId,
+      rating: finalRating,
+      reviewText: finalReviewText,
+      title: finalTitle || 'Review'
     };
     console.log('Review data to be created:', reviewData);
     
@@ -46,15 +52,23 @@ const createReview = async (req, res) => {
       rating: newReview.ratingpoint, // Use ratingpoint from DB
       createdAt: newReview.created_at,
       created_at: newReview.created_at,
-      upvotes: upvotes || 0, // Use upvotes from request since DB doesn't store it
+      upvotes: 0, // Default since DB doesn't store it
       downvotes: 0, // Not supported in current schema
-      pictures: pictures || [] // Use pictures from request since DB doesn't store it
+      pictures: [] // Default since DB doesn't store it
     };
     
     console.log('Review created successfully:', responseData);
     res.status(201).json(responseData);
   } catch (error) {
     console.error('Error creating review:', error);
+    
+    // Handle duplicate review constraint
+    if (error.code === '23505' && error.constraint === 'review_user_id_item_id_key') {
+      return res.status(400).json({ 
+        error: 'You have already reviewed this item. Each user can only review an item once.' 
+      });
+    }
+    
     res.status(500).json({ error: 'Internal server error' });
   }
 };

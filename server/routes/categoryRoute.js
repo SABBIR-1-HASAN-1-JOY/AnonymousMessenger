@@ -1,37 +1,43 @@
-const express =require('express') ;
-const pool =require('../config/db.js'); // renamed from 'sql' to 'pool' to match your actual export
+const express = require('express');
+const {
+  getAllCategories,
+  getEntitiesByCategory,
+  getCategoryById,
+  createCategory,
+  updateCategory,
+  deleteCategory,
+  getCategoryStats
+} = require('../controllers/categoryController');
+
+const {
+  validateCreateCategory,
+  validateUpdateCategory,
+  validateDeleteCategory,
+  validateGetCategoryById,
+  validateGetEntitiesByCategory
+} = require('../validators/categoryValidators');
 
 const router = express.Router();
 
-// Get all categories
-router.get('/', async (req, res) => {
-  try {
-    const result = await pool.query('SELECT * FROM category ORDER BY category_name');
-    res.json(result.rows);
-  } catch (err) {
-    console.error("Error fetching categories:", err.message);
-    res.status(500).json({ error: err.message });
-  }
-});
+// Get all categories (no validation needed)
+router.get('/', getAllCategories);
 
-// This is now responding to /api/categories/:categoryId
-router.get('/:categoryId', async (req, res) => {
-  try {
-    const { categoryId } = req.params;
+// Get category statistics (no validation needed)
+router.get('/stats', getCategoryStats);
 
-    const entities = await pool.query(
-      `SELECT * FROM reviewable_entity WHERE category_id = $1`,
-      [categoryId]
-    );
+// Get category by ID
+router.get('/:categoryId/info', validateGetCategoryById, getCategoryById);
 
-    res.json(entities.rows);
-  } catch (err) {
-    console.error("Error fetching entities:", err.message);
-    res.status(500).json({ error: err.message });
-  }
-});
+// Get entities by category ID
+router.get('/:categoryId', validateGetEntitiesByCategory, getEntitiesByCategory);
 
+// Create new category
+router.post('/', validateCreateCategory, createCategory);
 
+// Update category
+router.put('/:categoryId', validateUpdateCategory, updateCategory);
 
+// Delete category
+router.delete('/:categoryId', validateDeleteCategory, deleteCategory);
 
 module.exports = router;

@@ -1,16 +1,15 @@
 import React, { useState } from 'react';
 import { X, Star, Camera } from 'lucide-react';
-import { useApp } from '../../context/AppContext';
 import { useAuth } from '../../context/AuthContext';
 
 interface CreateReviewProps {
   entityId: string;
   entityName: string;
   onClose: () => void;
+  onSuccess?: (newReview: any) => void;
 }
 
-const CreateReview: React.FC<CreateReviewProps> = ({ entityId, entityName, onClose }) => {
-  const { addReview } = useApp();
+const CreateReview: React.FC<CreateReviewProps> = ({ entityId, entityName, onClose, onSuccess }) => {
   const { user } = useAuth();
   const [formData, setFormData] = useState({
     title: '',
@@ -26,16 +25,56 @@ const CreateReview: React.FC<CreateReviewProps> = ({ entityId, entityName, onClo
     setLoading(true);
     
     try {
-      await addReview({
-        entityId,
-        userId: user.id,
-        userName: user.displayName,
-        title: formData.title,
-        body: formData.body,
-        rating: formData.rating,
-        upvotes: 0,
-        downvotes: 0
+      const response = await fetch('http://localhost:3000/api/reviews', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: user.id,
+          itemId: entityId,
+          title: formData.title,
+          reviewText: formData.body,
+          rating: formData.rating
+        }),
       });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Server error response:', errorText);
+        
+        let errorMessage = 'Failed to create review';
+        try {
+          const errorJson = JSON.parse(errorText);
+          errorMessage = errorJson.error || errorMessage;
+        } catch {
+          errorMessage = errorText || errorMessage;
+        }
+        
+        alert(errorMessage); // Show user-friendly error message
+        throw new Error(`Failed to create review: ${response.status} - ${errorText}`);
+      }
+
+      const newReview = await response.json();
+      
+      // Call onSuccess callback with the new review data
+      if (onSuccess) {
+        onSuccess({
+          ...newReview,
+          userName: user.displayName,
+          username: user.displayName,
+          created_at: new Date().toISOString(),
+          createdAt: new Date().toISOString(),
+          rating: formData.rating,
+          ratingpoint: formData.rating,
+          title: formData.title,
+          review_title: formData.title,
+          body: formData.body,
+          review_text: formData.body,
+          upvotes: 0
+        });
+      }
+      
       onClose();
     } catch (error) {
       console.error('Error creating review:', error);

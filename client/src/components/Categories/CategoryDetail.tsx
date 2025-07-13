@@ -11,20 +11,9 @@ const CategoryDetail: React.FC = () => {
 
   const decodedCategory = category ? decodeURIComponent(category) : '';
   
-  if (!categories.includes(decodedCategory)) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">Category not found</h2>
-          <Link to="/categories" className="text-blue-600 hover:text-blue-700">
-            Back to categories
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
-  const categoryEntities = entities.filter(entity => entity.category === decodedCategory);
+  // Move the conditional rendering after all hooks
+  const categoryExists = categories.includes(decodedCategory);
+  const categoryEntities = categoryExists ? entities.filter(entity => entity.category === decodedCategory) : [];
 
   const filteredEntities = React.useMemo(() => {
     let filtered = categoryEntities;
@@ -40,13 +29,13 @@ const CategoryDetail: React.FC = () => {
     filtered.sort((a, b) => {
       switch (sortBy) {
         case 'rating-desc':
-          return (b.overallrating || b.overallRating || 0) - (a.overallrating || a.overallRating || 0);
+          return (b.overallRating || 0) - (a.overallRating || 0);
         case 'rating-asc':
-          return (a.overallrating || a.overallRating || 0) - (b.overallrating || b.overallRating || 0);
+          return (a.overallRating || 0) - (b.overallRating || 0);
         case 'reviews-desc':
-          return (b.reviewcount || b.reviewCount || 0) - (a.reviewcount || a.reviewCount || 0);
+          return (b.reviewCount || 0) - (a.reviewCount || 0);
         case 'reviews-asc':
-          return (a.reviewcount || a.reviewCount || 0) - (b.reviewcount || b.reviewCount || 0);
+          return (a.reviewCount || 0) - (b.reviewCount || 0);
         case 'name-asc':
           return a.item_name.localeCompare(b.item_name);
         case 'name-desc':
@@ -77,6 +66,20 @@ const CategoryDetail: React.FC = () => {
       />
     ));
   };
+
+  // Handle category not found after all hooks have been called
+  if (!categoryExists) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">Category not found</h2>
+          <Link to="/categories" className="text-blue-600 hover:text-blue-700">
+            Back to categories
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -187,9 +190,9 @@ const CategoryDetail: React.FC = () => {
                     {entity.category}
                   </span>
                   <div className="flex items-center">
-                    {renderStars(Math.round(entity.overallrating || entity.overallRating || 0))}
+                    {renderStars(Math.round(entity.overallRating || 0))}
                     <span className="ml-1 text-sm text-gray-600">
-                      {(entity.overallrating || entity.overallRating || 0).toFixed(1)}
+                      {(entity.overallRating || 0).toFixed(1)}
                     </span>
                   </div>
                 </div>
@@ -200,7 +203,7 @@ const CategoryDetail: React.FC = () => {
                   {entity.description}
                 </p>
                 <div className="flex items-center justify-between text-sm text-gray-500">
-                  <span>{entity.reviewcount || entity.reviewCount || 0} reviews</span>
+                  <span>{entity.reviewCount || 0} reviews</span>
                   <span>{entity?.followers?.length || 0} followers</span>
                 </div>
               </div>

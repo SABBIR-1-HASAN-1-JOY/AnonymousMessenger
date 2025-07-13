@@ -45,18 +45,12 @@ const EntityDetail: React.FC = () => {
         setLoading(true);
         setError(null);
         
-        // console.log('Fetching entity details for ID:', id);
-        // console.log('ID type:', typeof id);
-        // console.log('Full URL:', `http://localhost:3000/api/entities/${id}/details`);
-        
         const response = await fetch(`http://localhost:3000/api/entities/${id}/details`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
           },
         });
-        
-        // console.log('Entity details response status:', response.status);
         
         if (!response.ok) {
           if (response.status === 404) {
@@ -68,16 +62,10 @@ const EntityDetail: React.FC = () => {
         }
         
         const entityData = await response.json();
-        console.log('jani na');
         console.log('Entity details received:', entityData);
         
         // Check if the response has the entity nested inside an 'entity' property
         const actualEntityData = entityData.entity ? entityData.entity[0] : entityData;
-        
-        console.log('Actual entity data to use:', actualEntityData);
-        console.log('Entity name field:', actualEntityData.name);
-        console.log('Entity item_name field:', actualEntityData.item_name);
-        console.log('All entity fields:', Object.keys(actualEntityData));
         
         // Create the properly formatted entity object
         const formattedEntity = {
@@ -97,8 +85,6 @@ const EntityDetail: React.FC = () => {
           reviews: entityData.reviews || []
         };
         
-        console.log('Formatted entity for state:', formattedEntity);
-        
         setEntity(formattedEntity);
         setEntityReviews(entityData.reviews || []);
         
@@ -112,6 +98,27 @@ const EntityDetail: React.FC = () => {
 
     fetchEntityDetail();
   }, [id]);
+
+  // Handle a newly created review for immediate front-end update
+  const handleReviewSuccess = (newReview: any) => {
+    // Prepend new review
+    const updated = [newReview, ...entityReviews];
+    setEntityReviews(updated);
+    
+    // Calculate new average rating based on current entity rating and the new review
+    if (entity) {
+      const currentTotal = entity.overallRating * entity.reviewCount;
+      const newTotal = currentTotal + (newReview.ratingpoint || newReview.rating || 0);
+      const newCount = entity.reviewCount + 1;
+      const newAverage = newCount > 0 ? newTotal / newCount : 0;
+      
+      setEntity({
+        ...entity,
+        overallRating: newAverage,
+        reviewCount: newCount
+      });
+    }
+  };
 
   // Loading state
   if (loading) {
@@ -443,6 +450,10 @@ const EntityDetail: React.FC = () => {
           entityId={entity.id}
           entityName={entity.name || entity.item_name || 'Unknown Entity'}
           onClose={() => setShowCreateReview(false)}
+          onSuccess={(newReview) => {
+            setShowCreateReview(false);
+            handleReviewSuccess(newReview);
+          }}
         />
       )}
     </div>

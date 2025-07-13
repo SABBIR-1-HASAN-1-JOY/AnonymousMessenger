@@ -26,7 +26,7 @@ app.use((req, res, next) => {
 });
 
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://localhost:3000'],   // allow your frontend
+  origin: ['http://localhost:5173', 'http://localhost:4173'],   // allow your frontend
   credentials: true,   // if you are using cookies or auth tokens
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'user-id']
@@ -86,7 +86,7 @@ app.use('/api/entities', entityRoutes);
 // app.use('/api/entities/:entityId/details', entityDetailsRoute); // Route for entity details
 
 // Get hierarchy
-app.use('/api/hierarchy', heirarchyRoutes);
+// app.use('/api/hierarchy', heirarchyRoutes);
 
 //get user profile
 app.use('/api/userProfile', userProfileRoute);
