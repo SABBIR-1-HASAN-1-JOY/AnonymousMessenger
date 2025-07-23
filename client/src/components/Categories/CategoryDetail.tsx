@@ -29,13 +29,13 @@ const CategoryDetail: React.FC = () => {
     filtered.sort((a, b) => {
       switch (sortBy) {
         case 'rating-desc':
-          return (b.overallRating || 0) - (a.overallRating || 0);
+          return (b.overallRating || b.overallrating || 0) - (a.overallRating || a.overallrating || 0);
         case 'rating-asc':
-          return (a.overallRating || 0) - (b.overallRating || 0);
+          return (a.overallRating || a.overallrating || 0) - (b.overallRating || b.overallrating || 0);
         case 'reviews-desc':
-          return (b.reviewCount || 0) - (a.reviewCount || 0);
+          return (b.reviewCount || b.reviewcount || 0) - (a.reviewCount || a.reviewcount || 0);
         case 'reviews-asc':
-          return (a.reviewCount || 0) - (b.reviewCount || 0);
+          return (a.reviewCount || a.reviewcount || 0) - (b.reviewCount || b.reviewcount || 0);
         case 'name-asc':
           return a.item_name.localeCompare(b.item_name);
         case 'name-desc':
@@ -190,9 +190,9 @@ const CategoryDetail: React.FC = () => {
                     {entity.category}
                   </span>
                   <div className="flex items-center">
-                    {renderStars(Math.round(entity.overallRating || 0))}
+                    {renderStars(Math.round((entity.overallRating || entity.overallrating) || 0))}
                     <span className="ml-1 text-sm text-gray-600">
-                      {(entity.overallRating || 0).toFixed(1)}
+                      {Number((entity.overallRating || entity.overallrating) || 0).toFixed(1)}
                     </span>
                   </div>
                 </div>
@@ -203,7 +203,7 @@ const CategoryDetail: React.FC = () => {
                   {entity.description}
                 </p>
                 <div className="flex items-center justify-between text-sm text-gray-500">
-                  <span>{entity.reviewCount || 0} reviews</span>
+                  <span>{(entity.reviewCount || entity.reviewcount) || 0} reviews</span>
                   <span>{entity?.followers?.length || 0} followers</span>
                 </div>
               </div>

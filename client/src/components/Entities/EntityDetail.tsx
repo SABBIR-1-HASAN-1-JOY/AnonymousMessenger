@@ -4,6 +4,7 @@ import { Star, Heart, Users, Calendar, Plus, ArrowLeft, Loader } from 'lucide-re
 import { useApp } from '../../context/AppContext';
 import { useAuth } from '../../context/AuthContext';
 import CreateReview from './CreateReview';
+import VoteComponent from '../common/VoteComponent';
 
 interface EntityDetailData {
   id: string;
@@ -350,13 +351,23 @@ const EntityDetail: React.FC = () => {
                       <div key={review.review_id || review.id || index} className="bg-white rounded-xl shadow-md p-6">
                         <div className="flex items-start justify-between mb-4">
                           <div className="flex items-center">
-                            <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-teal-500 rounded-full flex items-center justify-center">
+                            <Link 
+                              to={`/profile/${(review.user_id || review.userId)?.toString()}`}
+                              className="w-12 h-12 bg-gradient-to-r from-blue-500 to-teal-500 rounded-full flex items-center justify-center hover:shadow-lg transition-shadow cursor-pointer"
+                              title={`View ${review.userName || review.username || 'user'}'s profile`}
+                            >
                               <span className="text-white font-medium text-lg">
                                 {(review.userName || review.username || 'U').charAt(0)}
                               </span>
-                            </div>
+                            </Link>
                             <div className="ml-4">
-                              <h4 className="font-semibold text-gray-900">{review.userName || review.username || 'Anonymous'}</h4>
+                              <Link 
+                                to={`/profile/${(review.user_id || review.userId)?.toString()}`}
+                                className="font-semibold text-gray-900 hover:text-blue-600 transition-colors cursor-pointer"
+                                title={`View ${review.userName || review.username || 'user'}'s profile`}
+                              >
+                                {review.userName || review.username || 'Anonymous'}
+                              </Link>
                               <div className="flex items-center">
                                 <div className="flex items-center mr-3">
                                   {renderStars(review.rating || review.ratingpoint || 0)}
@@ -388,7 +399,11 @@ const EntityDetail: React.FC = () => {
                           </div>
                         )}
                         
-                        <div className="flex items-center text-sm text-gray-500">
+                        <div className="flex items-center justify-between text-sm text-gray-500">
+                          <VoteComponent 
+                            entityType="review" 
+                            entityId={parseInt((review.review_id || review.id || index).toString())}
+                          />
                           <span>{review.upvotes || 0} helpful</span>
                         </div>
                       </div>
