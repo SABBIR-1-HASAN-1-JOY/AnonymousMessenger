@@ -4,28 +4,150 @@ import { MessageCircle, Star, Calendar, User } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { useAuth } from '../../context/AuthContext';
 import VoteComponent from '../common/VoteComponent';
+import RatingComponent from '../common/RatingComponent';
 
 const Feed: React.FC = () => {
-  const { posts, reviews, entities } = useApp();
+  const { posts, reviews, entities, setPosts } = useApp();
   const { user } = useAuth();
   const [filter, setFilter] = useState<'all' | 'posts' | 'reviews'>('all');
+  const [userRatings, setUserRatings] = useState<Record<string, number>>({});
+  const [followingUsers, setFollowingUsers] = useState<string[]>([]);
+
+  // Load user ratings from localStorage on component mount
+  React.useEffect(() => {
+    if (user?.id) {
+      const storedRatings = localStorage.getItem(`userRatings_${user.id}`);
+      if (storedRatings) {
+        try {
+          const parsedRatings = JSON.parse(storedRatings);
+          setUserRatings(parsedRatings);
+        } catch (error) {
+          console.error('Error loading user ratings:', error);
+        }
+      }
+    }
+  }, [user?.id]);
+
+  // Fetch following users from server to ensure we have the latest data
+  React.useEffect(() => {
+    const fetchFollowingUsers = async () => {
+      if (!user?.id) return;
+      
+      try {
+        const response = await fetch(`http://localhost:3000/api/users/${user.id}/following-users`);
+        if (response.ok) {
+          const followingData = await response.json();
+          console.log('Fetched following users from server:', followingData);
+          // Convert to strings for consistent comparison - backend returns user_id as integers
+          const followingIds = followingData.map((u: any) => (u.following_id || u.user_id).toString());
+          setFollowingUsers(followingIds);
+        } else {
+          console.log('Failed to fetch following users, using local data');
+          setFollowingUsers((user.following || []).map(id => id.toString()));
+        }
+      } catch (error) {
+        console.error('Error fetching following users:', error);
+        setFollowingUsers((user.following || []).map(id => id.toString()));
+      }
+    };
+
+    fetchFollowingUsers();
+  }, [user?.id, user?.following]);
+
+  // Handle rating a post
+  const handleRatePost = async (postId: string, rating: number) => {
+    if (!user) return;
+    
+    try {
+      console.log('Rating post:', postId, 'with rating:', rating);
+      
+      const response = await fetch(`http://localhost:3000/api/posts/${postId}/rate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: user.id,
+          rating: rating
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      console.log('Rating submitted successfully:', result);
+      
+      // Store the user's rating in local state and localStorage
+      setUserRatings(prev => {
+        const newRatings = {
+          ...prev,
+          [postId]: rating
+        };
+        
+        // Persist to localStorage
+        if (user?.id) {
+          localStorage.setItem(`userRatings_${user.id}`, JSON.stringify(newRatings));
+        }
+        
+        return newRatings;
+      });
+
+      // Update the posts context data with the new rating information
+      setPosts(prevPosts => 
+        prevPosts.map(post => {
+          if (post.id === postId) {
+            return {
+              ...post,
+              ratingpoint: rating, // Update the rating point from backend
+              averageRating: rating, // For now, since backend only stores latest rating
+              userRating: rating
+            };
+          }
+          return post;
+        })
+      );
+      
+    } catch (error) {
+      console.error('Error rating post:', error);
+      throw error;
+    }
+  };
 
   // Combine posts and reviews for the feed based on user's follows and activities
   const feedItems = React.useMemo(() => {
     if (!user) return [];
+    
+    console.log('Current user:', user);
+    console.log('Following users (from state):', followingUsers);
+    console.log('Following users (from user):', user.following);
+    console.log('All posts:', posts);
+    
+    // Use followingUsers state if available, otherwise fallback to user.following (ensure all are strings)
+    const actualFollowing = followingUsers.length > 0 ? followingUsers : (user.following || []).map(id => id.toString());
+    console.log('Actual following list to use:', actualFollowing);
     
     let items: any[] = [];
 
     if (filter === 'all' || filter === 'posts') {
       // 1. User's own posts (always included)
       const userPosts = posts.filter(post => 
-        post.userId === user.id
+        post.userId === user.id || post.user_id?.toString() === user.id
       );
+      console.log('User posts:', userPosts);
       
       // 2. Posts from users that the current user follows
-      const followedUsersPosts = posts.filter(post => 
-        user.following && user.following.includes(post.userId)
-      );
+      const followedUsersPosts = posts.filter(post => {
+        // Convert user_id (integer) to string for comparison with actualFollowing (array of strings)
+        const postUserIdString = post.userId || post.user_id?.toString();
+        const isFollowed = postUserIdString && actualFollowing.includes(postUserIdString);
+        if (isFollowed) {
+          console.log('Found followed user post:', post, 'Post user ID:', postUserIdString);
+        }
+        return isFollowed;
+      });
+      console.log('Followed users posts:', followedUsersPosts);
       
       items = [...items, 
         ...userPosts.map(post => ({ ...post, itemType: 'post' })),
@@ -38,21 +160,31 @@ const Feed: React.FC = () => {
       const userReviews = reviews.filter(review => 
         review.userId === user.id
       );
+      console.log('User reviews:', userReviews);
       
       // 4. Reviews by users that the current user follows
-      const followedUsersReviews = reviews.filter(review => 
-        user.following && user.following.includes(review.userId)
-      );
+      const followedUsersReviews = reviews.filter(review => {
+        const reviewUserIdString = review.userId?.toString();
+        const isFollowed = reviewUserIdString && actualFollowing.includes(reviewUserIdString);
+        if (isFollowed) {
+          console.log('Found followed user review:', review, 'Review user ID:', reviewUserIdString);
+        }
+        return isFollowed;
+      });
+      console.log('Followed users reviews:', followedUsersReviews);
       
       // 5. Reviews of entities that the user has reviewed (community activity on entities they care about)
       const userReviewedEntityIds = reviews
         .filter(review => review.userId === user.id)
         .map(review => review.entityId);
       
-      const reviewsOnUserReviewedEntities = reviews.filter(review => 
-        userReviewedEntityIds.includes(review.entityId) && 
-        review.userId !== user.id // Exclude user's own reviews (already included above)
-      );
+      const reviewsOnUserReviewedEntities = reviews.filter(review => {
+        const entityId = review.entityId;
+        const reviewUserId = review.userId;
+        return userReviewedEntityIds.includes(entityId) && 
+               reviewUserId !== user.id; // Exclude user's own reviews (already included above)
+      });
+      console.log('Reviews on user reviewed entities:', reviewsOnUserReviewedEntities);
       
       items = [...items, 
         ...userReviews.map(review => ({ ...review, itemType: 'review' })),
@@ -66,9 +198,15 @@ const Feed: React.FC = () => {
       index === self.findIndex(i => i.itemType === item.itemType && i.id === item.id)
     );
 
-    // Sort by creation date (recent first)
-    return uniqueItems.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-  }, [posts, reviews, filter, user]);
+    console.log('Final feed items:', uniqueItems);
+
+    // Sort by creation date (recent first) - handle different date field names
+    return uniqueItems.sort((a, b) => {
+      const dateA = new Date(a.createdAt || a.created_at || 0).getTime();
+      const dateB = new Date(b.createdAt || b.created_at || 0).getTime();
+      return dateB - dateA;
+    });
+  }, [posts, reviews, filter, user, followingUsers]);
 
   const renderStars = (rating: number) => {
     return Array.from({ length: 5 }, (_, i) => (
@@ -84,11 +222,14 @@ const Feed: React.FC = () => {
   const getRelationshipTag = (item: any) => {
     if (!user) return null;
     
-    if (item.userId === user.id) {
+    const itemUserIdString = item.userId || item.user_id?.toString();
+    const actualFollowing = followingUsers.length > 0 ? followingUsers : (user.following || []).map(id => id.toString());
+    
+    if (itemUserIdString === user.id) {
       return { text: 'Your content', color: 'bg-blue-100 text-blue-800' };
     }
     
-    if (user.following && user.following.includes(item.userId)) {
+    if (itemUserIdString && actualFollowing.includes(itemUserIdString)) {
       return { text: 'Following', color: 'bg-green-100 text-green-800' };
     }
     
@@ -97,7 +238,8 @@ const Feed: React.FC = () => {
         .filter(review => review.userId === user.id)
         .map(review => review.entityId);
       
-      if (userReviewedEntityIds.includes(item.entityId)) {
+      const itemEntityId = item.entityId;
+      if (userReviewedEntityIds.includes(itemEntityId)) {
         return { text: 'Entity you reviewed', color: 'bg-purple-100 text-purple-800' };
       }
     }
@@ -172,16 +314,26 @@ const Feed: React.FC = () => {
               <div key={`${item.itemType}-${item.id}`} className="bg-white rounded-xl shadow-md p-6">
                 {/* Header */}
                 <div className="flex items-center mb-4">
-                  <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-teal-500 rounded-full flex items-center justify-center">
+                  <Link 
+                    to={`/profile/${(item.userId || item.user_id)?.toString()}`}
+                    className="w-12 h-12 bg-gradient-to-r from-blue-500 to-teal-500 rounded-full flex items-center justify-center hover:shadow-lg transition-shadow cursor-pointer"
+                    title={`View ${item.userName || item.user_name || 'user'}'s profile`}
+                  >
                     <span className="text-white font-medium text-lg">
-                      {item.userName.charAt(0)}
+                      {(item.userName || item.user_name || 'U').charAt(0)}
                     </span>
-                  </div>
+                  </Link>
                   <div className="ml-4 flex-1">
                     <div className="flex items-center justify-between">
                       <div>
                         <div className="flex items-center gap-2 mb-1">
-                          <h3 className="font-semibold text-gray-900">{item.userName}</h3>
+                          <Link 
+                            to={`/profile/${(item.userId || item.user_id)?.toString()}`}
+                            className="font-semibold text-gray-900 hover:text-blue-600 transition-colors cursor-pointer"
+                            title={`View ${item.userName || item.user_name || 'user'}'s profile`}
+                          >
+                            {item.userName || item.user_name || 'Unknown User'}
+                          </Link>
                           {(() => {
                             const tag = getRelationshipTag(item);
                             return tag ? (
@@ -193,14 +345,14 @@ const Feed: React.FC = () => {
                         </div>
                         <div className="flex items-center text-sm text-gray-500">
                           <Calendar className="w-4 h-4 mr-1" />
-                          {new Date(item.createdAt).toLocaleDateString()}
+                          {new Date(item.createdAt || item.created_at).toLocaleDateString()}
                           <span className="mx-2">•</span>
                           <span className="capitalize">{item.itemType}</span>
                         </div>
                       </div>
                       {item.itemType === 'review' && (
                         <div className="flex items-center">
-                          {renderStars(item.rating)}
+                          {renderStars(item.rating || item.ratingpoint || 0)}
                         </div>
                       )}
                     </div>
@@ -210,17 +362,34 @@ const Feed: React.FC = () => {
                 {/* Content */}
                 {item.itemType === 'post' ? (
                   <div>
-                    {item.type === 'rate-my-work' ? (
+                    {(item.type === 'rate-my-work' || item.isRatedEnabled || item.is_rate_enabled) ? (
                       <div>
-                        <h4 className="text-lg font-semibold text-gray-900 mb-2">{item.title}</h4>
-                        <p className="text-gray-700 mb-4">{item.description}</p>
+                        <p className="text-gray-700 mb-4">{item.description || item.content || item.post_text || ''}</p>
                         {item.image && (
                           <img
                             src={item.image}
-                            alt={item.title}
+                            alt="Rate my work"
                             className="w-full max-w-md h-64 object-cover rounded-lg mb-4"
                           />
                         )}
+                        
+                        {/* Rating Component for Rate My Work Posts */}
+                        <div className="mb-4 p-4 bg-gray-50 rounded-lg">
+                          <RatingComponent
+                            postId={item.id}
+                            currentUserRating={userRatings[item.id] || Number(item.userRating) || 0}
+                            averageRating={Number(item.averageRating) || Number(item.ratingpoint) || 0}
+                            totalRatings={Number(item.totalRatings) || 0}
+                            onRate={(rating) => handleRatePost(item.id, rating)}
+                            disabled={(item.userId || item.user_id?.toString()) === user?.id} // Don't allow users to rate their own posts
+                          />
+                          {(item.userId || item.user_id?.toString()) === user?.id && (
+                            <p className="text-sm text-gray-500 mt-2">
+                              You cannot rate your own post
+                            </p>
+                          )}
+                        </div>
+                        
                         <div className="flex items-center justify-between text-sm text-gray-500">
                           <VoteComponent 
                             entityType="post" 
@@ -229,13 +398,13 @@ const Feed: React.FC = () => {
                           />
                           <div className="flex items-center">
                             <MessageCircle className="w-4 h-4 mr-1" />
-                            <span>{item.comments.length} comments</span>
+                            <span>{item.comments?.length || 0} comments</span>
                           </div>
                         </div>
                       </div>
                     ) : (
                       <div>
-                        <p className="text-gray-700 mb-4">{item.content}</p>
+                        <p className="text-gray-700 mb-4">{item.content || item.post_text || ''}</p>
                         {item.image && (
                           <img
                             src={item.image}
@@ -251,7 +420,7 @@ const Feed: React.FC = () => {
                           />
                           <div className="flex items-center">
                             <MessageCircle className="w-4 h-4 mr-1" />
-                            <span>{item.comments.length} comments</span>
+                            <span>{item.comments?.length || 0} comments</span>
                           </div>
                         </div>
                       </div>
@@ -259,8 +428,8 @@ const Feed: React.FC = () => {
                   </div>
                 ) : (
                   <div>
-                    <h4 className="text-lg font-semibold text-gray-900 mb-2">{item.title}</h4>
-                    <p className="text-gray-700 mb-4">{item.body}</p>
+                    <h4 className="text-lg font-semibold text-gray-900 mb-2">{item.title || item.review_title || 'Review'}</h4>
+                    <p className="text-gray-700 mb-4">{item.body || item.review_text || item.content}</p>
                     
                     {/* Review voting component */}
                     <div className="mb-4">
@@ -271,7 +440,7 @@ const Feed: React.FC = () => {
                     </div>
                     
                     {(() => {
-                      const entity = entities.find(e => e.id === item.entityId || e.item_id?.toString() === item.entityId);
+                      const entity = entities.find(e => e.id === (item.entityId || item.item_id) || e.item_id?.toString() === (item.entityId || item.item_id));
                       return entity ? (
                         <Link
                           to={`/entities/${entity.item_id || entity.id}`}

@@ -4,6 +4,7 @@ import { Calendar, MapPin, Edit, Star, MessageSquare, Users, Heart, Loader, User
 import { useAuth } from '../../context/AuthContext';
 import { useApp } from '../../context/AppContext';
 import VoteComponent from '../common/VoteComponent';
+import RatingComponent from '../common/RatingComponent';
 
 interface Review {
   review_id: number;
@@ -22,6 +23,8 @@ interface Post {
   post_text: string;
   created_at: string;
   post_title?: string;
+  is_rate_enabled?: boolean;
+  ratingpoint?: number;
 }
 
 interface UserProfile {
@@ -54,6 +57,7 @@ const Profile: React.FC = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [activeTab, setActiveTab] = useState<'posts' | 'reviews' | 'following'>('posts');
   const [followingUsers, setFollowingUsers] = useState<any[]>([]);
+  const [userRatings, setUserRatings] = useState<Record<string, number>>({});
   const [editData, setEditData] = useState({
     displayName: user?.displayName || '',
     bio: user?.bio || ''
@@ -152,9 +156,26 @@ const Profile: React.FC = () => {
       }
     };
 
+    // Load user ratings for posts (if any exist in local storage or from previous session)
+    const loadUserRatings = () => {
+      if (user?.id) {
+        const storedRatings = localStorage.getItem(`userRatings_${user.id}`);
+        if (storedRatings) {
+          try {
+            const parsedRatings = JSON.parse(storedRatings);
+            setUserRatings(parsedRatings);
+            console.log('Loaded user ratings from storage:', parsedRatings);
+          } catch (error) {
+            console.error('Error loading user ratings:', error);
+          }
+        }
+      }
+    };
+
     fetchUserProfile();
     fetchFollowStatus();
     fetchFollowingUsers();
+    loadUserRatings();
   }, [profileId, user?.id]);
 
   // Update user profile on server
@@ -272,6 +293,78 @@ const Profile: React.FC = () => {
       setError('Failed to unfollow user. Please try again.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Handle rating a post
+  const handleRatePost = async (postId: string, rating: number) => {
+    if (!user?.id) {
+      setError('You must be logged in to rate posts');
+      return;
+    }
+
+    try {
+      console.log('Rating post:', { postId, userId: user.id, rating });
+      
+      const response = await fetch(`http://localhost:3000/api/posts/${postId}/rate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: user.id,
+          rating: rating
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to submit rating');
+      }
+
+      const result = await response.json();
+      console.log('Rating submitted successfully:', result);
+
+      // Store the user's rating in local state
+      setUserRatings(prev => {
+        const newRatings = {
+          ...prev,
+          [postId]: rating
+        };
+        
+        // Persist to localStorage
+        if (user?.id) {
+          localStorage.setItem(`userRatings_${user.id}`, JSON.stringify(newRatings));
+        }
+        
+        return newRatings;
+      });
+
+      // Update the post in the local state to reflect the new rating
+      if (userProfile) {
+        setUserProfile(prev => {
+          if (!prev) return prev;
+          
+          const updatedPosts = prev.posts?.map(post => {
+            if (post.post_id.toString() === postId) {
+              return {
+                ...post,
+                ratingpoint: rating
+              };
+            }
+            return post;
+          });
+
+          return {
+            ...prev,
+            posts: updatedPosts
+          };
+        });
+      }
+
+    } catch (err) {
+      console.error('Error rating post:', err);
+      setError(err instanceof Error ? err.message : 'Failed to submit rating');
     }
   };
 
@@ -573,6 +666,31 @@ const Profile: React.FC = () => {
                         )}
                         <p className="text-gray-700 mb-3">{post.post_text}</p>
                         
+                        {/* Rating Section for rate-my-work posts */}
+                        {post.is_rate_enabled && (
+                          <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+                            <RatingComponent
+                              postId={post.post_id.toString()}
+                              currentUserRating={userRatings[post.post_id.toString()] || 0}
+                              averageRating={Number(post.ratingpoint) || 0}
+                              totalRatings={post.ratingpoint ? 1 : 0} // Simple approach - indicates if rated
+                              onRate={
+                                // Only allow rating if it's not the user's own post
+                                post.user_id.toString() !== user?.id?.toString()
+                                  ? (rating) => handleRatePost(post.post_id.toString(), rating)
+                                  : undefined
+                              }
+                              disabled={post.user_id.toString() === user?.id?.toString()}
+                              className="w-full"
+                            />
+                            {post.user_id.toString() === user?.id?.toString() && (
+                              <p className="text-sm text-gray-500 mt-2">
+                                You cannot rate your own post
+                              </p>
+                            )}
+                          </div>
+                        )}
+                        
                         {/* Voting and Comments Section */}
                         <div className="flex items-center justify-between border-t pt-3 mt-3">
                           <VoteComponent 
@@ -588,6 +706,11 @@ const Profile: React.FC = () => {
                         
                         <div className="text-xs text-gray-400 mt-2">
                           Posted on {new Date(post.created_at).toLocaleDateString()}
+                          {post.is_rate_enabled && (
+                            <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">
+                              Rate My Work
+                            </span>
+                          )}
                         </div>
                       </div>
                     ))
@@ -664,27 +787,14 @@ const Profile: React.FC = () => {
                               <h3 className="font-semibold text-gray-900">
                                 {followedUser.username || 'Unknown User'}
                               </h3>
-                              <p className="text-sm text-gray-600">
-                                {followedUser.email || 'No email'}
-                              </p>
                               {followedUser.bio && (
                                 <p className="text-sm text-gray-500 mt-1">
                                   {followedUser.bio}
                                 </p>
                               )}
-                              <div className="flex items-center mt-2 text-xs text-gray-400">
-                                <Users className="w-3 h-3 mr-1" />
-                                <span>{followedUser.followerCount || 0} followers</span>
-                                <span className="mx-2">•</span>
-                                <MessageSquare className="w-3 h-3 mr-1" />
-                                <span>{followedUser.post_count || 0} posts</span>
-                              </div>
                             </div>
                           </div>
                           <div className="text-right">
-                            <p className="text-xs text-gray-400 mb-2">
-                              Following since {new Date(followedUser.followed_at).toLocaleDateString()}
-                            </p>
                             <button
                               onClick={() => window.location.href = `/profile/${followedUser.following_id || followedUser.user_id}`}
                               className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition-colors"

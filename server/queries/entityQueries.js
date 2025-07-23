@@ -55,12 +55,13 @@ const getReviewsByEntityId = async (entityId) => {
 
 // Insert new entity into reviewable_entity
 const insertEntity = async ({ category_id, item_name, owner_id, description, picture }) => {
+  // make the owner_id default to 1
   try {
     const result = await pool.query(
       `INSERT INTO reviewable_entity (category_id, item_name, owner_id, description, picture)
        VALUES ($1, $2, $3, $4, $5)
        RETURNING *`,
-      [category_id, item_name, owner_id, description, picture]
+      [category_id, item_name, 1, description, picture]
     );
     return result.rows[0];
   } catch (error) {

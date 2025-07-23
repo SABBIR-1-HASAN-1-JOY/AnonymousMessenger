@@ -40,7 +40,7 @@ exports.getAllReviews=async(userId)=>{
 };
 
 exports.getAllPosts=async(userId)=>{
-  const query = `SELECT * FROM "post" WHERE user_id = $1`;
+  const query = `SELECT post_id, user_id, post_text, created_at, is_rate_enabled, ratingpoint FROM "post" WHERE user_id = $1`;
   const result = await pool.query(query, [userId]);
   return result.rows;
 };

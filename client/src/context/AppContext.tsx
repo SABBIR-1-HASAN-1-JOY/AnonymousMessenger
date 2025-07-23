@@ -9,7 +9,7 @@ interface AppContextType {
   categories: string[];
   addEntity: (entity: Omit<Entity, 'id' | 'createdAt'>) => void;
   addReview: (review: Omit<Review, 'id' | 'createdAt'>) => Promise<void>;
-  addPost: (post: Omit<Post, 'id' | 'createdAt'>) => Promise<void>;
+  setPosts: React.Dispatch<React.SetStateAction<Post[]>>; // Expose setPosts for direct state updates
   followEntity: (entityId: string, userId: string) => void;
   unfollowEntity: (entityId: string, userId: string) => void;
   searchEntities: (query: string) => Entity[];
@@ -165,49 +165,6 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     }
   };
 
-  const addPost = async (postData: Omit<Post, 'id' | 'createdAt'>) => {
-    try {
-      console.log('Adding post to backend:', postData);
-      
-      const requestBody: any = {
-        userId: postData.userId,
-        type: postData.type
-        // Note: image removed as not supported in current database schema
-      };
-
-      if (postData.type === 'simple') {
-        requestBody.content = (postData as SimplePost).content;
-      } else if (postData.type === 'rate-my-work') {
-        requestBody.title = (postData as RateMyWorkPost).title;
-        requestBody.description = (postData as RateMyWorkPost).description;
-      }
-      
-      const response = await fetch('http://localhost:3000/api/posts', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestBody),
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const newPost = await response.json();
-      console.log('Post created successfully:', newPost);
-      
-      // Update local state
-      const updatedPosts = [...posts, newPost];
-      setPosts(updatedPosts);
-      
-      return newPost;
-    } catch (error) {
-      console.error('Error adding post:', error);
-      throw error;
-    }
-  };
-
   const ratePost = (postId: string, userId: string, rating: number) => {
     const updatedPosts = posts.map(post => {
       if (post.id === postId && post.type === 'rate-my-work') {
@@ -226,7 +183,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
           addNotification({
             userId: post.userId,
             type: 'rating',
-            message: `Someone rated your "${post.title}" post ${rating} stars!`,
+            message: `Someone rated your post ${rating} stars!`,
             read: false,
             relatedId: postId
           });
@@ -373,7 +330,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       categories,
       addEntity,
       addReview,
-      addPost,
+      setPosts, // Expose setPosts instead of addPost
       followEntity,
       unfollowEntity,
       searchEntities,

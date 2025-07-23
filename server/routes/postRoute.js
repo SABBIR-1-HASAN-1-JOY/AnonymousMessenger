@@ -4,7 +4,8 @@ const {
   createPost, 
   getAllPosts, 
   getPostsByUser, 
-  votePost 
+  votePost,
+  ratePost
 } = require('../controllers/postControllers');
 
 const {
@@ -27,5 +28,8 @@ router.get('/user/:userId', validateGetPostsByUser, getPostsByUser);
 
 // Vote on a post
 router.post('/:postId/vote', validateVotePost, votePost);
+
+// Rate a post (for rate-my-work posts)
+router.post('/:postId/rate', ratePost);
 
 module.exports = router;

@@ -46,20 +46,25 @@ export interface RateMyWorkPost {
   id: string;
   type: 'rate-my-work';
   userId: string;
+  user_id?: number; // Database field
   userName: string;
   userAvatar?: string;
-  title: string;
   description: string;
   image?: string;
   ratings: { userId: string; rating: number }[];
   comments: Comment[];
   createdAt: string;
+  averageRating?: number; // Calculated rating display
+  ratingpoint?: number; // Backend database field
+  totalRatings?: number; // Total number of ratings
+  userRating?: number; // Current user's rating
 }
 
 export interface SimplePost {
   id: string;
   type: 'simple';
   userId: string;
+  user_id?: number; // Database field
   userName: string;
   userAvatar?: string;
   content: string;
@@ -68,6 +73,10 @@ export interface SimplePost {
   downvotes: number;
   comments: Comment[];
   createdAt: string;
+  averageRating?: number; // For posts that might have rating enabled
+  ratingpoint?: number; // Backend database field
+  totalRatings?: number; // Total number of ratings
+  userRating?: number; // Current user's rating
 }
 
 export type Post = RateMyWorkPost | SimplePost;

@@ -7,18 +7,61 @@ import { SimplePost, RateMyWorkPost } from '../../types';
 
 const CreatePost: React.FC = () => {
   const navigate = useNavigate();
-  const { addPost } = useApp();
+  const { posts, setPosts } = useApp(); // Use posts and setPosts from context
   const { user } = useAuth();
   const [postType, setPostType] = useState<'simple' | 'rate-my-work'>('simple');
   const [simplePostData, setSimplePostData] = useState({
     content: ''
   });
   const [rateMyWorkData, setRateMyWorkData] = useState({
-    title: '',
     description: ''
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  const createPost = async (postData: Omit<SimplePost | RateMyWorkPost, 'id' | 'createdAt'>) => {
+    try {
+      console.log('Adding post to backend:', postData);
+      
+      const requestBody: any = {
+        userId: parseInt(postData.userId),
+        content: postData.type === 'simple' ? (postData as SimplePost).content : (postData as RateMyWorkPost).description,
+        is_rate_enabled: postData.type === 'rate-my-work'
+      };
+
+      console.log('Request body being sent:', requestBody);
+      console.log('Post type:', postData.type);
+      console.log('is_rate_enabled will be:', postData.type === 'rate-my-work');
+
+      // Use single endpoint for both post types
+      const endpoint = 'http://localhost:3000/api/posts';
+      
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      }
+
+      const newPost = await response.json();
+      console.log('Post created successfully:', newPost);
+      
+      // Update local state
+      const updatedPosts = [...posts, newPost];
+      setPosts(updatedPosts);
+      
+      return newPost;
+    } catch (error) {
+      console.error('Error adding post:', error);
+      throw error;
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,7 +72,7 @@ const CreatePost: React.FC = () => {
 
     try {
       if (postType === 'simple') {
-        await addPost({
+        await createPost({
           type: 'simple',
           userId: user.id,
           userName: user.displayName,
@@ -39,20 +82,21 @@ const CreatePost: React.FC = () => {
           comments: []
         } as Omit<SimplePost, 'id' | 'createdAt'>);
       } else {
-        await addPost({
+        await createPost({
           type: 'rate-my-work',
           userId: user.id,
           userName: user.displayName,
-          title: rateMyWorkData.title,
           description: rateMyWorkData.description,
           ratings: [],
           comments: []
         } as Omit<RateMyWorkPost, 'id' | 'createdAt'>);
       }
+      
+      // Navigate to feed on successful creation
       navigate('/feed');
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error creating post:', err);
-      setError('Failed to create post. Please try again.');
+      setError(err.message || 'Failed to create post. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -164,39 +208,21 @@ const CreatePost: React.FC = () => {
               </div>
             ) : (
               /* Rate My Work Form */
-              <>
-                <div>
-                  <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-2">
-                    Project Title *
-                  </label>
-                  <input
-                    type="text"
-                    id="title"
-                    name="title"
-                    value={rateMyWorkData.title}
-                    onChange={handleRateMyWorkChange}
-                    required
-                    placeholder="Give your work a title"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-2">
-                    Description *
-                  </label>
-                  <textarea
-                    id="description"
-                    name="description"
-                    value={rateMyWorkData.description}
-                    onChange={handleRateMyWorkChange}
-                    required
-                    rows={6}
-                    placeholder="Describe your work and what kind of feedback you're looking for..."
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors resize-none"
-                  />
-                </div>
-              </>
+              <div>
+                <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-2">
+                  What do you want feedback on? *
+                </label>
+                <textarea
+                  id="description"
+                  name="description"
+                  value={rateMyWorkData.description}
+                  onChange={handleRateMyWorkChange}
+                  required
+                  rows={6}
+                  placeholder="Describe your work and what kind of feedback you're looking for..."
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors resize-none"
+                />
+              </div>
             )}
 
             {/* Image URL - Commented out as not supported in current database schema */}
@@ -239,7 +265,7 @@ const CreatePost: React.FC = () => {
               </button>
               <button
                 type="submit"
-                disabled={loading || (postType === 'simple' ? !simplePostData.content.trim() : !rateMyWorkData.title.trim() || !rateMyWorkData.description.trim())}
+                disabled={loading || (postType === 'simple' ? !simplePostData.content.trim() : !rateMyWorkData.description.trim())}
                 className="flex-1 px-6 py-3 bg-gradient-to-r from-blue-600 to-teal-600 text-white rounded-lg font-medium hover:from-blue-700 hover:to-teal-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:scale-105"
               >
                 {loading ? 'Publishing...' : 'Publish Post'}

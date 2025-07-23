@@ -13,6 +13,19 @@ const createEntity = async (req, res) => {
       return res.status(400).json({ error: 'name, description, category, and ownerId are required' });
     }
     
+    // Check if the owner (user) exists
+    console.log('Checking if user exists:', ownerId);
+    const userResult = await require('../config/db.js').query(
+      'SELECT user_id FROM "user" WHERE user_id = $1',
+      [ownerId]
+    );
+    console.log('User lookup result:', userResult.rows);
+    
+    if (userResult.rows.length === 0) {
+      console.log('User not found:', ownerId);
+      return res.status(400).json({ error: `User with ID ${ownerId} does not exist` });
+    }
+    
     // Lookup category_id from category name
     console.log('Looking up category:', category);
     const catResult = await require('../config/db.js').query(

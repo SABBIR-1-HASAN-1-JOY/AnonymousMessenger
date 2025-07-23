@@ -22,41 +22,28 @@ const userIdSchema = Joi.object({
 
 // Validation schema for creating a new post
 const createPostSchema = Joi.object({
-  user_id: Joi.number().integer().positive().required().messages({
+  userId: Joi.number().integer().positive().required().messages({
     'number.base': 'User ID must be a number',
     'number.integer': 'User ID must be an integer',
     'number.positive': 'User ID must be a positive number',
     'any.required': 'User ID is required'
   }),
-  post_title: Joi.string()
-    .trim()
-    .min(1)
-    .max(200)
-    .allow(null, '')
-    .optional()
-    .messages({
-      'string.base': 'Post title must be a string',
-      'string.min': 'Post title must be at least 1 character long',
-      'string.max': 'Post title must be less than 200 characters'
-    }),
-  post_text: Joi.string()
+  content: Joi.string()
     .trim()
     .min(1)
     .max(5000)
     .required()
     .messages({
-      'string.base': 'Post text must be a string',
-      'string.empty': 'Post text cannot be empty',
-      'string.min': 'Post text must be at least 1 character long',
-      'string.max': 'Post text must be less than 5000 characters',
-      'any.required': 'Post text is required'
+      'string.base': 'Post content must be a string',
+      'string.empty': 'Post content cannot be empty',
+      'string.min': 'Post content must be at least 1 character long',
+      'string.max': 'Post content must be less than 5000 characters',
+      'any.required': 'Post content is required'
     }),
-  post_type: Joi.string()
-    .valid('simple', 'rate-my-work', 'discussion', 'question')
-    .default('simple')
+  is_rate_enabled: Joi.boolean()
+    .default(false)
     .messages({
-      'string.base': 'Post type must be a string',
-      'any.only': 'Post type must be one of: simple, rate-my-work, discussion, question'
+      'boolean.base': 'is_rate_enabled must be a boolean'
     }),
   image_url: Joi.string()
     .uri()

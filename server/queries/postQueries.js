@@ -4,24 +4,13 @@ const pool = require('../config/db.js');
 // Create a new post
 const createPost = async (postData) => {
   try {
-    const { userId, type, content, title, description } = postData;
-    
-    // Combine content, title, and description into post_text
-    let postText = '';
-    if (type === 'simple') {
-      postText = content;
-    } else if (type === 'rate-my-work') {
-      postText = `Title: ${title}\n\nDescription: ${description}`;
-    }
-    
-    // Set is_rate_enabled based on post type
-    const isRateEnabled = type === 'rate-my-work';
+    const { userId, content, is_rated_enabled } = postData;
     
     const result = await pool.query(`
       INSERT INTO post (user_id, post_text, is_rate_enabled, created_at)
       VALUES ($1, $2, $3, NOW())
       RETURNING *
-    `, [userId, postText, isRateEnabled]);
+    `, [userId, content, is_rated_enabled]);
     
     return result.rows[0];
   } catch (error) {
@@ -39,6 +28,7 @@ const getAllPosts = async () => {
         p.user_id,
         p.post_text,
         p.is_rate_enabled,
+        p.ratingpoint,
         p.created_at,
         u.username as user_name
       FROM post p
@@ -62,6 +52,7 @@ const getPostsByUserId = async (userId) => {
         p.user_id,
         p.post_text,
         p.is_rate_enabled,
+        p.ratingpoint,
         p.created_at,
         u.username as user_name
       FROM post p
