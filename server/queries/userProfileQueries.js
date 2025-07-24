@@ -44,3 +44,15 @@ exports.getAllPosts=async(userId)=>{
   const result = await pool.query(query, [userId]);
   return result.rows;
 };
+
+exports.updateUser = async (userId, userData) => {
+  const { username, bio } = userData;
+  const query = `
+    UPDATE "user" 
+    SET username = $1, bio = $2
+    WHERE user_id = $3
+    RETURNING *
+  `;
+  const result = await pool.query(query, [username, bio, userId]);
+  return result.rows[0];
+};

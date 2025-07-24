@@ -7,6 +7,7 @@ export interface User {
   followers: string[];
   following: string[];
   createdAt: string;
+  role?: string; // Added role property for admin functionality
 }
 
 export interface Entity {

@@ -1,7 +1,8 @@
 import React from 'react';
-import { MessageCircle, Calendar } from 'lucide-react';
+import { Calendar } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import VoteComponent from '../common/VoteComponent';
+import CommentComponent from '../common/CommentComponent';
 import { SimplePost, RateMyWorkPost } from '../../types';
 
 interface PostCardProps {
@@ -66,12 +67,11 @@ const PostCard: React.FC<PostCardProps> = ({
       <div>
         {post.type === 'rate-my-work' ? (
           <div>
-            <h4 className="text-lg font-semibold text-gray-900 mb-2">{post.title}</h4>
             <p className="text-gray-700 mb-4">{post.description}</p>
             {post.image && (
               <img
                 src={post.image}
-                alt={post.title}
+                alt="Rate my work post"
                 className="w-full max-w-md h-64 object-cover rounded-lg mb-4"
               />
             )}
@@ -89,17 +89,20 @@ const PostCard: React.FC<PostCardProps> = ({
           </div>
         )}
 
-        {/* Voting and interaction */}
-        <div className="flex items-center justify-between text-sm text-gray-500 mt-4">
-          <VoteComponent 
-            entityType="post" 
-            entityId={parseInt(post.id.toString())} 
-            className="flex-1"
+        {/* Voting */}
+        <div className="flex items-center text-sm text-gray-500 mt-4">
+          <VoteComponent
+            entityType="post"
+            entityId={parseInt(post.id.toString())}
           />
-          <div className="flex items-center">
-            <MessageCircle className="w-4 h-4 mr-1" />
-            <span>{post.comments?.length || 0} comments</span>
-          </div>
+        </div>
+
+        {/* Comments section */}
+        <div className="mt-4 border-t pt-4">
+          <CommentComponent
+            entityType="post"
+            entityId={parseInt(post.id.toString())}
+          />
         </div>
       </div>
     </div>

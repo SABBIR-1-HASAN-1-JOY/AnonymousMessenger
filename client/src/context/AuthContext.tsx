@@ -31,48 +31,64 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
-    // Initialize demo users if they don't exist
-    const existingUsers = localStorage.getItem('jachai_users');
-    if (!existingUsers) {
-      const demoUsers: User[] = [
+    // Initialize demo users with backend-compatible numeric IDs  
+    const demoUsers: User[] = [
         {
-          id: 'demo1',
+          id: '1',  // Changed from 'demo1' to match backend
           email: 'john@demo.com',
           displayName: 'John Smith',
           bio: 'Tech enthusiast and food lover. Always looking for the next great experience! 📱🍕',
           profilePicture: 'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=150',
-          followers: ['demo2', 'demo3'],
-          following: ['demo2'],
-          createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString() // 30 days ago
+          followers: ['2', '3'],  // Updated to use numeric IDs
+          following: ['2'],
+          createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days ago
+          role: 'user'
         },
         {
-          id: 'demo2',
+          id: '3',  // Changed from 'admin1' to match backend
+          email: 'admin@demo.com',
+          displayName: 'Admin User',
+          bio: 'System Administrator with full access to admin features',
+          profilePicture: 'https://images.pexels.com/photos/1222271/pexels-photo-1222271.jpeg?auto=compress&cs=tinysrgb&w=150',
+          followers: [],
+          following: [],
+          createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(), // 10 days ago
+          role: 'admin'
+        },
+        {
+          id: '2',  // Changed from 'demo2' to match backend
           email: 'sarah@demo.com',
           displayName: 'Sarah Johnson',
           bio: 'Travel blogger and restaurant critic. Sharing my adventures around the world 🌍✈️',
           profilePicture: 'https://images.pexels.com/photos/415829/pexels-photo-415829.jpeg?auto=compress&cs=tinysrgb&w=150',
-          followers: ['demo1', 'demo3'],
-          following: ['demo1', 'demo3'],
-          createdAt: new Date(Date.now() - 45 * 24 * 60 * 60 * 1000).toISOString() // 45 days ago
+          followers: ['1', '3'],  // Updated to use numeric IDs
+          following: ['1', '3'],
+          createdAt: new Date(Date.now() - 45 * 24 * 60 * 60 * 1000).toISOString(), // 45 days ago
+          role: 'user'
         },
         {
-          id: 'demo3',
+          id: '4',  // Changed from 'demo3' to match backend (assuming user 4 exists)
           email: 'mike@demo.com',
           displayName: 'Mike Chen',
           bio: 'Software developer by day, gamer by night. Love reviewing the latest tech and games. 💻🎮',
           profilePicture: 'https://images.pexels.com/photos/614810/pexels-photo-614810.jpeg?auto=compress&cs=tinysrgb&w=150',
-          followers: ['demo1'],
-          following: ['demo1', 'demo2'],
-          createdAt: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString() // 60 days ago
+          followers: ['1'],  // Updated to use numeric IDs
+          following: ['1', '2'],
+          createdAt: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString(), // 60 days ago
+          role: 'user'
         }
       ];
       localStorage.setItem('jachai_users', JSON.stringify(demoUsers));
-    }
 
     // Check for saved user session
     const savedUser = localStorage.getItem('jachai_user');
     if (savedUser) {
-      setUser(JSON.parse(savedUser));
+      const parsedUser = JSON.parse(savedUser);
+      // Ensure role is set for existing users
+      if (!parsedUser.role) {
+        parsedUser.role = 'user';
+      }
+      setUser(parsedUser);
     }
   }, []);
 
@@ -90,6 +106,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       });
 
       if (!response.ok) {
+        // If server is down, fall back to demo users
+        const users = JSON.parse(localStorage.getItem('jachai_users') || '[]');
+        const foundUser = users.find((user: User) => user.email === email);
+        
+        if (foundUser && (password === 'demo123' || (email === 'admin@demo.com' && password === 'admin123'))) {
+          setUser(foundUser);
+          localStorage.setItem('jachai_user', JSON.stringify(foundUser));
+          return true;
+        }
         return false;
       }
 
@@ -104,7 +129,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         profilePicture: userData.profile_picture || undefined,
         followers: [],
         following: [],
-        createdAt: userData.created_at || new Date().toISOString()
+        createdAt: userData.created_at || new Date().toISOString(),
+        role: userData.isAdmin ? 'admin' : 'user'
       };
 
       setUser(foundUser);
@@ -112,6 +138,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       return true;
     } catch (error) {
       console.error('Login error:', error);
+      // Fallback to demo users when server is unavailable
+      const users = JSON.parse(localStorage.getItem('jachai_users') || '[]');
+      const foundUser = users.find((user: User) => user.email === email);
+      
+      if (foundUser && (password === 'demo123' || (email === 'admin@demo.com' && password === 'admin123'))) {
+        setUser(foundUser);
+        localStorage.setItem('jachai_user', JSON.stringify(foundUser));
+        return true;
+      }
       return false;
     }
   };
@@ -150,7 +185,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         profilePicture: userData.profile_picture || undefined,
         followers: [],
         following: [],
-        createdAt: userData.created_at
+        createdAt: userData.created_at,
+        role: userData.isAdmin ? 'admin' : 'user'
       };
 
       setUser(newUser);

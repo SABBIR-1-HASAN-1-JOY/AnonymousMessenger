@@ -26,25 +26,35 @@ const CreateEntity: React.FC = () => {
     setError('');
 
     try {
-      // Create entity via backend
-      console.log('Creating entity with data:', formData);
-      const response = await fetch('http://localhost:3000/api/entities/create', {
+      // Create entity request instead of entity directly
+      console.log('Creating entity request with data:', formData);
+      const response = await fetch('http://localhost:3000/api/entity-requests', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name: formData.name,
+          userId: user.id,
+          itemName: formData.name,
           description: formData.description,
           category: formData.category,
-          picture: formData.picture || undefined,
-          ownerId: user.id || null
+          sector: formData.sector || null,
+          picture: formData.picture || null
         })
       });
+      
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(`HTTP error! status: ${response.status}, message: ${errorData.error || 'Unknown error'}`);
       }
-      const newEntity = await response.json();
-      navigate(`/entities/${newEntity.item_id}`);
+      
+      const result = await response.json();
+      console.log('Entity request created successfully:', result);
+
+      // Show success message and redirect
+      alert('Entity request submitted successfully! It will be reviewed by an admin before being added to the database.');
+      navigate('/entities'); // Redirect to entities list
+      
+      // Don't navigate immediately - let user upload photos first
+      // navigate(`/entities/${newEntity.item_id}`);
     } catch (err) {
       console.error('Error creating entity:', err);
       const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
@@ -189,15 +199,15 @@ const CreateEntity: React.FC = () => {
               </p>
             </div>
 
-            {/* Photo Upload Placeholder */}
+            {/* Photo Upload Note */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Upload Photo (Coming Soon)
+                Entity Photos
               </label>
               <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
                 <Camera className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                 <p className="text-gray-600">
-                  Photo upload feature will be available soon
+                  Photos can be uploaded after the entity request is approved by an admin
                 </p>
               </div>
             </div>
@@ -216,7 +226,7 @@ const CreateEntity: React.FC = () => {
                 disabled={loading || !formData.name.trim() || !formData.description.trim() || !formData.category}
                 className="flex-1 px-6 py-3 bg-gradient-to-r from-blue-600 to-teal-600 text-white rounded-lg font-medium hover:from-blue-700 hover:to-teal-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:scale-105"
               >
-                {loading ? 'Creating...' : 'Create Entity'}
+                {loading ? 'Submitting Request...' : 'Submit Entity Request'}
               </button>
             </div>
           </form>

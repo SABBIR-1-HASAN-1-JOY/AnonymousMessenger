@@ -4,6 +4,7 @@ import { Calendar, Star, User } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useApp } from '../../context/AppContext';
 import VoteComponent from '../common/VoteComponent';
+import CommentComponent from '../common/CommentComponent';
 
 interface Review {
   id: number;
@@ -119,6 +120,14 @@ const ReviewCard: React.FC<ReviewCardProps> = ({
             Review for {entity.name || entity.item_name}
           </Link>
         )}
+
+        {/* Comments section */}
+        <div className="mt-4 border-t pt-4">
+          <CommentComponent 
+            entityType="review" 
+            entityId={review.id} 
+          />
+        </div>
       </div>
     </div>
   );

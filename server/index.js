@@ -12,7 +12,15 @@ const reviewRoutes = require('./routes/reviewRoute.js') ;
 const searchRoutes = require('./routes/searchRoute.js') ;
 const followingRoutes = require('./routes/followingRoute.js') ;
 const voteRoutes = require('./routes/voteRoute.js') ;
+const photoRoutes = require('./routes/photoRoute.js') ;
+const commentRoutes = require('./routes/commentRoute.js') ;
+const notificationRoutes = require('./routes/notificationRoute.js') ;
+const entityRequestRoutes = require('./routes/entityRequestRoute.js') ;
 const databaseSetup = require('./setup/databaseSetup.js') ;
+const photoSetup = require('./setup/photoSetup.js') ;
+const commentSetup = require('./setup/commentSetup.js') ;
+const notificationSetup = require('./setup/notificationSetup.js') ;
+const entityRequestSetup = require('./setup/entityRequestSetup.js') ;
 // const entityDetailsRoute = require('./routes/entityDetails.js') ; // Assuming you have this route for entity details
 
 const app = express();
@@ -26,7 +34,7 @@ app.use((req, res, next) => {
 });
 
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://localhost:4173'],   // allow your frontend
+  origin: ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:4173'],   // allow your frontend
   credentials: true,   // if you are using cookies or auth tokens
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'user-id']
@@ -105,6 +113,20 @@ app.use('/api/users', followingRoutes);
 //vote routes
 app.use('/api/votes', voteRoutes);
 
+//photo routes
+app.use('/api/photos', photoRoutes);
+
+//comment routes
+// Comments API
+app.use('/api/comments', commentRoutes);
+
+//notification routes
+// Notifications API
+app.use('/api/notifications', notificationRoutes);
+
+// Entity Requests API (Admin)
+app.use('/api/entity-requests', entityRequestRoutes);
+
 // Database setup endpoint (for manual setup if needed)
 app.post('/api/setup/vote-table', async (req, res) => {
   try {
@@ -114,6 +136,158 @@ app.post('/api/setup/vote-table', async (req, res) => {
     console.error('Error setting up vote table:', error);
     res.status(500).json({ 
       error: 'Failed to setup vote table', 
+      details: error.message 
+    });
+  }
+});
+
+// Photo system setup endpoint
+app.post('/api/setup/photo-system', async (req, res) => {
+  try {
+    await photoSetup.setupPhotoSystem();
+    res.json({ message: 'Photo system setup completed successfully' });
+  } catch (error) {
+    console.error('Error setting up photo system:', error);
+    res.status(500).json({ 
+      error: 'Failed to setup photo system', 
+      details: error.message 
+    });
+  }
+});
+
+// Entity Request system setup endpoint
+app.post('/api/setup/entity-request-system', async (req, res) => {
+  console.log('=== ENTITY REQUEST SYSTEM SETUP ENDPOINT HIT ===');
+  try {
+    await entityRequestSetup.setupEntityRequestSystem();
+    res.json({ message: 'Entity request system setup completed successfully' });
+  } catch (error) {
+    console.error('Error setting up entity request system:', error);
+    res.status(500).json({ 
+      error: 'Failed to setup entity request system', 
+      details: error.message 
+    });
+  }
+});
+
+// Comment system setup endpoint
+app.post('/api/setup/comment-system', async (req, res) => {
+  console.log('=== COMMENT SYSTEM SETUP ENDPOINT HIT ===');
+  try {
+    const result = await commentSetup.setupCommentSystem();
+    if (!result.success) {
+      return res.status(500).json({ 
+        error: 'Failed to setup comment system', 
+        details: result.error 
+      });
+    }
+    res.json({ message: result.message });
+  } catch (error) {
+    console.error('Error setting up comment system:', error);
+    res.status(500).json({ 
+      error: 'Failed to setup comment system', 
+      details: error.message 
+    });
+  }
+});
+
+// Add sample comments endpoint
+app.post('/api/setup/sample-comments', async (req, res) => {
+  try {
+    const result = await commentSetup.addSampleComments();
+    if (!result.success) {
+      return res.status(500).json({ 
+        error: 'Failed to add sample comments', 
+        details: result.error 
+      });
+    }
+    res.json({ message: result.message });
+  } catch (error) {
+    console.error('Error adding sample comments:', error);
+    res.status(500).json({ 
+      error: 'Failed to add sample comments', 
+      details: error.message 
+    });
+  }
+});
+
+// Add notification setup endpoints
+app.post('/api/setup/notifications', async (req, res) => {
+  try {
+    const result = await notificationSetup.setupNotificationSystem();
+    if (!result.success) {
+      return res.status(500).json({ 
+        error: 'Failed to setup notification system', 
+        details: result.error 
+      });
+    }
+    res.json({ message: result.message });
+  } catch (error) {
+    console.error('Error setting up notification system:', error);
+    res.status(500).json({ 
+      error: 'Failed to setup notification system', 
+      details: error.message 
+    });
+  }
+});
+
+app.post('/api/setup/sample-notifications', async (req, res) => {
+  try {
+    const result = await notificationSetup.addSampleNotifications();
+    if (!result.success) {
+      return res.status(500).json({ 
+        error: 'Failed to add sample notifications', 
+        details: result.error 
+      });
+    }
+    res.json({ message: result.message });
+  } catch (error) {
+    console.error('Error adding sample notifications:', error);
+    res.status(500).json({ 
+      error: 'Failed to add sample notifications', 
+      details: error.message 
+    });
+  }
+});
+
+// Verify comment system endpoint
+app.post('/api/setup/verify-comments', async (req, res) => {
+  try {
+    const result = await commentSetup.verifyCommentSystem();
+    if (!result.success) {
+      return res.status(500).json({ 
+        error: 'Comment system verification failed', 
+        details: result.error 
+      });
+    }
+    res.json({ message: result.message });
+  } catch (error) {
+    console.error('Error verifying comment system:', error);
+    res.status(500).json({ 
+      error: 'Failed to verify comment system', 
+      details: error.message 
+    });
+  }
+});
+
+// Migration endpoint for fixing photos table
+app.post('/api/migrate/fix-photos-table', async (req, res) => {
+  try {
+    const fs = require('fs');
+    const path = require('path');
+    
+    // Read the migration SQL file
+    const migrationPath = path.join(__dirname, 'migrations', 'fix_photos_table.sql');
+    const migrationSQL = fs.readFileSync(migrationPath, 'utf8');
+    
+    // Execute the migration
+    await pool.query(migrationSQL);
+    
+    res.json({ message: 'Photos table migration completed successfully' });
+  } catch (error) {
+    console.error('Error running photos table migration:', error);
+    res.status(500).json({ 
+      error: 'Failed to run migration', 
       details: error.message 
     });
   }
@@ -235,6 +409,22 @@ app.get('/api/test/review-schema', async (req, res) => {
     res.json({ schema: result.rows });
   } catch (err) {
     console.error('Error checking schema:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Test endpoint to check photos table schema
+app.get('/api/test/photos-schema', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT column_name, data_type, is_nullable 
+      FROM information_schema.columns 
+      WHERE table_name = 'photos' 
+      ORDER BY ordinal_position
+    `);
+    res.json({ schema: result.rows });
+  } catch (err) {
+    console.error('Error checking photos schema:', err);
     res.status(500).json({ error: err.message });
   }
 });

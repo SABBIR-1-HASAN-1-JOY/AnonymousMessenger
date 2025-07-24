@@ -22,3 +22,11 @@ exports.getUserProfileWithCounts = async (userId) => {
     posts
   };
 };
+
+exports.updateUserProfile = async (userId, userData) => {
+  const updatedUser = await userQueries.updateUser(userId, userData);
+  if (!updatedUser) return null;
+  
+  // Return the updated user with counts
+  return exports.getUserProfileWithCounts(userId);
+};

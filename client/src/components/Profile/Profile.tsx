@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { Calendar, MapPin, Edit, Star, MessageSquare, Users, Heart, Loader, UserPlus, UserMinus, MessageCircle } from 'lucide-react';
+import { Calendar, MapPin, Edit, Star, MessageSquare, Users, Heart, Loader, UserPlus, UserMinus } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useApp } from '../../context/AppContext';
 import VoteComponent from '../common/VoteComponent';
 import RatingComponent from '../common/RatingComponent';
+import CommentComponent from '../common/CommentComponent';
 
 interface Review {
   review_id: number;
@@ -58,6 +59,9 @@ const Profile: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'posts' | 'reviews' | 'following'>('posts');
   const [followingUsers, setFollowingUsers] = useState<any[]>([]);
   const [userRatings, setUserRatings] = useState<Record<string, number>>({});
+  const [selectedPhoto, setSelectedPhoto] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [editData, setEditData] = useState({
     displayName: user?.displayName || '',
     bio: user?.bio || ''
@@ -99,6 +103,30 @@ const Profile: React.FC = () => {
         
         const profileData = await response.json();
         console.log('Profile data received:', profileData);
+        
+        // Fetch profile photos
+        try {
+          const photosResponse = await fetch(`http://localhost:3000/api/photos/profile/${profileId}`, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          });
+          
+          if (photosResponse.ok) {
+            const photosData = await photosResponse.json();
+            console.log('Profile photos received:', photosData);
+            
+            // If there are profile photos, use the latest one
+            if (photosData && photosData.length > 0) {
+              const latestPhoto = photosData[photosData.length - 1]; // Get the most recent photo
+              profileData.profile_picture = `http://localhost:3000${latestPhoto.url}`;
+            }
+          }
+        } catch (photoErr) {
+          console.log('No profile photos found or error fetching photos:', photoErr);
+        }
+        
         setUserProfile(profileData);
         
         // Update edit data with server data
@@ -217,6 +245,69 @@ const Profile: React.FC = () => {
       setError('Failed to update profile. Please try again.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Handle photo file selection
+  const handlePhotoSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setSelectedPhoto(file);
+      
+      // Create preview URL
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setPhotoPreview(e.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // Handle photo upload
+  const handlePhotoUpload = async () => {
+    if (!selectedPhoto || !user?.id) return;
+
+    try {
+      setUploadingPhoto(true);
+      setError('');
+
+      const formData = new FormData();
+      formData.append('photo', selectedPhoto);
+      formData.append('userId', user.id.toString());
+      formData.append('type', 'profile');
+      formData.append('typeId', user.id.toString());
+
+      console.log('Uploading profile photo...');
+      const response = await fetch('http://localhost:3000/api/photos/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to upload photo');
+      }
+
+      const uploadResult = await response.json();
+      console.log('Photo uploaded successfully:', uploadResult);
+
+      // Update the user profile with the new photo URL
+      if (userProfile) {
+        setUserProfile({
+          ...userProfile,
+          profile_picture: `http://localhost:3000${uploadResult.url}`
+        });
+      }
+
+      // Clear the photo selection
+      setSelectedPhoto(null);
+      setPhotoPreview(null);
+      
+    } catch (err) {
+      console.error('Error uploading photo:', err);
+      setError(err instanceof Error ? err.message : 'Failed to upload photo');
+    } finally {
+      setUploadingPhoto(false);
     }
   };
 
@@ -467,8 +558,14 @@ const Profile: React.FC = () => {
           {/* Profile Info */}
           <div className="px-6 pb-6">
             <div className="flex items-start -mt-16 mb-4">
-              <div className="w-32 h-32 bg-white rounded-full border-4 border-white shadow-lg flex items-center justify-center">
-                {displayProfile.profile_picture ? (
+              <div className="w-32 h-32 bg-white rounded-full border-4 border-white shadow-lg flex items-center justify-center relative">
+                {photoPreview ? (
+                  <img
+                    src={photoPreview}
+                    alt="Preview"
+                    className="w-full h-full rounded-full object-cover"
+                  />
+                ) : displayProfile.profile_picture ? (
                   <img
                     src={displayProfile.profile_picture}
                     alt={displayProfile.username}
@@ -478,6 +575,22 @@ const Profile: React.FC = () => {
                   <span className="text-4xl font-bold text-gray-600">
                     {displayProfile.username?.charAt(0) || 'U'}
                   </span>
+                )}
+                
+                {/* Photo upload button in edit mode */}
+                {isEditing && isOwnProfile && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 rounded-full opacity-0 hover:opacity-100 transition-opacity cursor-pointer">
+                    <label htmlFor="photo-upload" className="cursor-pointer">
+                      <Edit className="w-6 h-6 text-white" />
+                      <input
+                        id="photo-upload"
+                        type="file"
+                        accept="image/*"
+                        onChange={handlePhotoSelect}
+                        className="hidden"
+                      />
+                    </label>
+                  </div>
                 )}
               </div>
               
@@ -508,8 +621,35 @@ const Profile: React.FC = () => {
                       // Show edit profile for own profile
                       isEditing ? (
                         <>
+                          {/* Photo upload controls */}
+                          {selectedPhoto && (
+                            <div className="flex gap-2 mr-2">
+                              <button
+                                onClick={handlePhotoUpload}
+                                disabled={uploadingPhoto}
+                                className="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 text-sm"
+                              >
+                                {uploadingPhoto ? 'Uploading...' : 'Upload Photo'}
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setSelectedPhoto(null);
+                                  setPhotoPreview(null);
+                                }}
+                                disabled={uploadingPhoto}
+                                className="px-3 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 text-sm"
+                              >
+                                Cancel Photo
+                              </button>
+                            </div>
+                          )}
+                          
                           <button
-                            onClick={() => setIsEditing(false)}
+                            onClick={() => {
+                              setIsEditing(false);
+                              setSelectedPhoto(null);
+                              setPhotoPreview(null);
+                            }}
                             disabled={loading}
                             className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
                           >
@@ -692,15 +832,18 @@ const Profile: React.FC = () => {
                         )}
                         
                         {/* Voting and Comments Section */}
-                        <div className="flex items-center justify-between border-t pt-3 mt-3">
+                        <div className="flex items-center justify-between border-t pt-3 mt-3 mb-4 text-sm text-gray-500">
                           <VoteComponent 
                             entityType="post" 
                             entityId={parseInt(post.post_id.toString())}
-                            className="flex-1"
+                            className="flex items-center space-x-4"
                           />
-                          <div className="flex items-center text-sm text-gray-500">
-                            <MessageCircle className="w-4 h-4 mr-1" />
-                            <span>0 comments</span>
+                          <div className="flex items-center space-x-4 relative">
+                            <CommentComponent
+                              entityType="post"
+                              entityId={parseInt(post.post_id.toString())}
+                              className="inline-flex"
+                            />
                           </div>
                         </div>
                         
@@ -745,12 +888,20 @@ const Profile: React.FC = () => {
                           </div>
                           <p className="text-gray-700 mb-3">{review.review_text}</p>
                           
-                          {/* Voting Section */}
-                          <div className="border-t pt-3 mb-3">
+                          {/* Voting and Comments Section */}
+                          <div className="border-t pt-3 mb-3 flex items-center justify-between text-sm text-gray-500">
                             <VoteComponent 
                               entityType="review" 
                               entityId={parseInt(review.review_id.toString())}
+                              className="flex items-center space-x-4"
                             />
+                            <div className="flex items-center space-x-4 relative">
+                              <CommentComponent
+                                entityType="review"
+                                entityId={parseInt(review.review_id.toString())}
+                                className="inline-flex"
+                              />
+                            </div>
                           </div>
                           
                           <div className="text-xs text-gray-400">

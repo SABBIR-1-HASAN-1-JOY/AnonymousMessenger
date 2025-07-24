@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Star, Heart, Users, Calendar, Plus, ArrowLeft, Loader } from 'lucide-react';
-import { useApp } from '../../context/AppContext';
+import { Star, Calendar, Plus, ArrowLeft, Loader } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import CreateReview from './CreateReview';
 import VoteComponent from '../common/VoteComponent';
+import PhotoGallery from '../common/PhotoGallery';
 
 interface EntityDetailData {
   id: string;
@@ -27,12 +27,10 @@ interface EntityDetailData {
 
 const EntityDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  const { followEntity, unfollowEntity } = useApp();
   const { user } = useAuth();
   const [showCreateReview, setShowCreateReview] = useState(false);
-  const [activeTab, setActiveTab] = useState<'reviews' | 'info'>('reviews');
+  const [activeTab, setActiveTab] = useState<'reviews' | 'photos' | 'info'>('reviews');
   const [entity, setEntity] = useState<EntityDetailData | null>(null);
-  const [isFollowing, setIsFollowing] = useState(false);
   const [entityReviews, setEntityReviews] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -64,9 +62,11 @@ const EntityDetail: React.FC = () => {
         
         const entityData = await response.json();
         console.log('Entity details received:', entityData);
+        console.log('Reviews data:', entityData.reviews);
         
         // Check if the response has the entity nested inside an 'entity' property
         const actualEntityData = entityData.entity ? entityData.entity[0] : entityData;
+        console.log('Actual entity data:', actualEntityData);
         
         // Create the properly formatted entity object
         const formattedEntity = {
@@ -85,6 +85,30 @@ const EntityDetail: React.FC = () => {
           createdAt: actualEntityData.created_at || actualEntityData.createdAt || new Date().toISOString(),
           reviews: entityData.reviews || []
         };
+        
+        // Calculate actual average rating from reviews if available
+        const reviews = entityData.reviews || [];
+        if (reviews.length > 0) {
+          const validRatings = reviews
+            .map((review: any) => {
+              const rating = review.rating || review.ratingpoint || 0;
+              const numRating = typeof rating === 'string' ? parseFloat(rating) : rating;
+              return isNaN(numRating) ? 0 : numRating;
+            })
+            .filter((rating: number) => rating > 0);
+          
+          if (validRatings.length > 0) {
+            const calculatedAverage = validRatings.reduce((sum: number, rating: number) => sum + rating, 0) / validRatings.length;
+            formattedEntity.overallRating = calculatedAverage;
+            formattedEntity.reviewCount = validRatings.length;
+          }
+        } else {
+          // Ensure we have valid numbers from the backend data
+          const backendRating = parseFloat(actualEntityData.average_rating) || actualEntityData.overallRating || 0;
+          const backendCount = parseInt(actualEntityData.review_count) || actualEntityData.reviewCount || 0;
+          formattedEntity.overallRating = isNaN(backendRating) ? 0 : backendRating;
+          formattedEntity.reviewCount = isNaN(backendCount) ? 0 : backendCount;
+        }
         
         setEntity(formattedEntity);
         setEntityReviews(entityData.reviews || []);
@@ -106,19 +130,8 @@ const EntityDetail: React.FC = () => {
     const updated = [newReview, ...entityReviews];
     setEntityReviews(updated);
     
-    // Calculate new average rating based on current entity rating and the new review
-    if (entity) {
-      const currentTotal = entity.overallRating * entity.reviewCount;
-      const newTotal = currentTotal + (newReview.ratingpoint || newReview.rating || 0);
-      const newCount = entity.reviewCount + 1;
-      const newAverage = newCount > 0 ? newTotal / newCount : 0;
-      
-      setEntity({
-        ...entity,
-        overallRating: newAverage,
-        reviewCount: newCount
-      });
-    }
+    // The actual rating will be recalculated automatically from the updated entityReviews
+    // No need to manually update entity state since we're using calculated values
   };
 
   // Loading state
@@ -149,18 +162,6 @@ const EntityDetail: React.FC = () => {
     );
   }
 
-  const handleFollowToggle = () => {
-    if (!user) return;
-    
-    if (isFollowing) {
-      unfollowEntity(entity.id, user.id);
-      setIsFollowing(false);
-    } else {
-      followEntity(entity.id, user.id);
-      setIsFollowing(true);
-    }
-  };
-
   const renderStars = (rating: number) => {
     return Array.from({ length: 5 }, (_, i) => (
       <Star
@@ -172,13 +173,52 @@ const EntityDetail: React.FC = () => {
     ));
   };
 
-  const ratingDistribution = [5, 4, 3, 2, 1].map(rating => ({
-    rating,
-    count: entityReviews.filter(r => (r.rating || r.ratingpoint) === rating).length,
-    percentage: entityReviews.length > 0 
-      ? (entityReviews.filter(r => (r.rating || r.ratingpoint) === rating).length / entityReviews.length) * 100 
-      : 0
-  }));
+  // Calculate actual average from current reviews
+  const calculateActualRating = (reviews: any[]) => {
+    if (!reviews || reviews.length === 0) return 0;
+    
+    const validRatings = reviews
+      .map(review => {
+        const rating = review.rating || review.ratingpoint || 0;
+        const numRating = typeof rating === 'string' ? parseFloat(rating) : rating;
+        return isNaN(numRating) ? 0 : numRating;
+      })
+      .filter(rating => rating > 0); // Only count valid positive ratings
+    
+    if (validRatings.length === 0) return 0;
+    
+    const totalRating = validRatings.reduce((sum: number, rating: number) => sum + rating, 0);
+    return totalRating / validRatings.length;
+  };
+
+  const actualAverageRating = calculateActualRating(entityReviews);
+  const actualReviewCount = entityReviews ? entityReviews.length : 0;
+
+  // Use calculated rating if available, otherwise fall back to entity's stored rating
+  const displayRating = actualReviewCount > 0 ? actualAverageRating : (entity?.overallRating || entity?.overallrating || 0);
+  const displayReviewCount = actualReviewCount > 0 ? actualReviewCount : (entity?.reviewCount || entity?.reviewcount || 0);
+
+  const ratingDistribution = [5, 4, 3, 2, 1].map(rating => {
+    if (!entityReviews || entityReviews.length === 0) {
+      return {
+        rating,
+        count: 0,
+        percentage: 0
+      };
+    }
+    
+    const count = entityReviews.filter(r => {
+      const reviewRating = r.rating || r.ratingpoint || 0;
+      const numRating = typeof reviewRating === 'string' ? parseFloat(reviewRating) : reviewRating;
+      return !isNaN(numRating) && Math.round(numRating) === rating;
+    }).length;
+    
+    return {
+      rating,
+      count,
+      percentage: entityReviews.length > 0 ? (count / entityReviews.length) * 100 : 0
+    };
+  });
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -223,20 +263,6 @@ const EntityDetail: React.FC = () => {
                   </div>
                   <p className="text-gray-600 text-lg mb-4">{entity.description}</p>
                 </div>
-                
-                {user && (
-                  <button
-                    onClick={handleFollowToggle}
-                    className={`flex items-center px-4 py-2 rounded-lg font-medium transition-colors ${
-                      isFollowing
-                        ? 'bg-red-100 text-red-700 hover:bg-red-200'
-                        : 'bg-blue-600 text-white hover:bg-blue-700'
-                    }`}
-                  >
-                    <Heart className={`w-4 h-4 mr-2 ${isFollowing ? 'fill-current' : ''}`} />
-                    {isFollowing ? 'Unfollow' : 'Follow'}
-                  </button>
-                )}
               </div>
 
               {/* Rating Summary */}
@@ -244,21 +270,16 @@ const EntityDetail: React.FC = () => {
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center">
                     <div className="text-4xl font-bold text-gray-900 mr-3">
-                      {(entity?.overallrating || entity?.overallRating || 0).toFixed(1)}
+                      {(displayRating || 0).toFixed(1)}
                     </div>
                     <div>
                       <div className="flex items-center mb-1">
-                        {renderStars(Math.round(entity?.overallrating || entity?.overallRating || 0))}
+                        {renderStars(Math.round(displayRating || 0))}
                       </div>
                       <div className="text-sm text-gray-600">
-                        Based on {entity?.reviewcount || entity?.reviewCount || 0} reviews
+                        Based on {displayReviewCount || 0} reviews
                       </div>
                     </div>
-                  </div>
-                  
-                  <div className="flex items-center text-gray-600">
-                    <Users className="w-5 h-5 mr-2" />
-                    <span>{entity?.followers?.length} followers</span>
                   </div>
                 </div>
 
@@ -266,15 +287,20 @@ const EntityDetail: React.FC = () => {
                 <div className="space-y-2">
                   {ratingDistribution.map(({ rating, count, percentage }) => (
                     <div key={rating} className="flex items-center text-sm">
-                      <span className="w-8 text-gray-600">{rating}</span>
+                      <span className="w-8 text-gray-600 font-medium">{rating}</span>
                       <Star className="w-4 h-4 text-yellow-400 fill-current mr-2" />
                       <div className="flex-1 bg-gray-200 rounded-full h-2 mr-3">
                         <div
-                          className="bg-yellow-400 h-2 rounded-full"
+                          className="bg-yellow-400 h-2 rounded-full transition-all duration-300"
                           style={{ width: `${percentage}%` }}
                         />
                       </div>
-                      <span className="w-8 text-gray-600">{count}</span>
+                      <span className="w-12 text-gray-600 text-right">
+                        {count} {count === 1 ? 'review' : 'reviews'}
+                      </span>
+                      <span className="w-12 text-gray-500 text-right text-xs ml-2">
+                        ({percentage.toFixed(0)}%)
+                      </span>
                     </div>
                   ))}
                 </div>
@@ -309,6 +335,16 @@ const EntityDetail: React.FC = () => {
             }`}
           >
             Reviews ({entityReviews.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('photos')}
+            className={`px-6 py-3 font-medium border-b-2 transition-colors ${
+              activeTab === 'photos'
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            Photos
           </button>
           <button
             onClick={() => setActiveTab('info')}
@@ -386,18 +422,15 @@ const EntityDetail: React.FC = () => {
                           {review.review_text || review.body || review.content || review.text || 'No review text'}
                         </p>
                         
-                        {review.pictures && review.pictures.length > 0 && (
-                          <div className="flex gap-2 mb-4">
-                            {review.pictures.map((pic: string, index: number) => (
-                              <img
-                                key={index}
-                                src={pic}
-                                alt={`Review image ${index + 1}`}
-                                className="w-20 h-20 object-cover rounded-lg"
-                              />
-                            ))}
-                          </div>
-                        )}
+                        {/* Review Photos */}
+                        <div className="mb-4">
+                          <PhotoGallery
+                            type="reviews"
+                            sourceId={parseInt((review.review_id || review.id || index).toString())}
+                            canDelete={false}
+                            className="w-full"
+                          />
+                        </div>
                         
                         <div className="flex items-center justify-between text-sm text-gray-500">
                           <VoteComponent 
@@ -425,6 +458,20 @@ const EntityDetail: React.FC = () => {
                 )}
               </div>
             )}
+          </div>
+        )}
+
+        {activeTab === 'photos' && (
+          <div className="bg-white rounded-xl shadow-md p-6">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-semibold text-gray-900">Entity Photos</h3>
+            </div>
+            <PhotoGallery
+              type="entities"
+              sourceId={parseInt(entity.id || entity.item_id || '0')}
+              canDelete={false} // Only admins should be able to delete entity photos
+              className="w-full"
+            />
           </div>
         )}
 

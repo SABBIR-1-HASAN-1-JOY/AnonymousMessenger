@@ -5,7 +5,7 @@ import { AppProvider } from './context/AppContext';
 import Layout from './components/Layout/Layout';
 import Home from './components/Home/Home';
 import Login from './components/Auth/Login';
-import Register from './components/Auth/Register';
+import Register from './components/Auth/Register';  
 import EntityList from './components/Entities/EntityList';
 import EntityDetail from './components/Entities/EntityDetail';
 import CreateEntity from './components/Entities/CreateEntity';
@@ -16,6 +16,7 @@ import Feed from './components/Feed/Feed';
 import Profile from './components/Profile/Profile';
 import Notifications from './components/Notifications/Notifications';
 import SearchResults from './components/Search/SearchResults';
+import AdminDashboard from './components/Admin/AdminDashboard';
 
 function App() {
   return (
@@ -39,6 +40,7 @@ function App() {
               <Route path="/profile/:id" element={<Profile />} />
               <Route path="/notifications" element={<Notifications />} />
               <Route path="/search" element={<SearchResults />} />
+              <Route path="/admin" element={<AdminDashboard />} />
             </Route>
           </Routes>
         </AppProvider>

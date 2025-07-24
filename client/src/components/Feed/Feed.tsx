@@ -5,6 +5,8 @@ import { useApp } from '../../context/AppContext';
 import { useAuth } from '../../context/AuthContext';
 import VoteComponent from '../common/VoteComponent';
 import RatingComponent from '../common/RatingComponent';
+import PhotoGallery from '../common/PhotoGallery';
+import CommentComponent from '../common/CommentComponent';
 
 const Feed: React.FC = () => {
   const { posts, reviews, entities, setPosts } = useApp();
@@ -390,15 +392,18 @@ const Feed: React.FC = () => {
                           )}
                         </div>
                         
-                        <div className="flex items-center justify-between text-sm text-gray-500">
+                        <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
                           <VoteComponent 
                             entityType="post" 
                             entityId={parseInt(item.id.toString())} 
-                            className="flex-1"
+                            className="flex items-center space-x-4"
                           />
-                          <div className="flex items-center">
-                            <MessageCircle className="w-4 h-4 mr-1" />
-                            <span>{item.comments?.length || 0} comments</span>
+                          <div className="flex items-center space-x-4 relative">
+                            <CommentComponent
+                              entityType="post"
+                              entityId={parseInt(item.id.toString())}
+                              className="inline-flex"
+                            />
                           </div>
                         </div>
                       </div>
@@ -412,15 +417,18 @@ const Feed: React.FC = () => {
                             className="w-full max-w-md h-64 object-cover rounded-lg mb-4"
                           />
                         )}
-                        <div className="flex items-center justify-between text-sm text-gray-500">
+                        <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
                           <VoteComponent 
                             entityType="post" 
                             entityId={parseInt(item.id.toString())}
-                            className="flex-1"
+                            className="flex items-center space-x-4"
                           />
-                          <div className="flex items-center">
-                            <MessageCircle className="w-4 h-4 mr-1" />
-                            <span>{item.comments?.length || 0} comments</span>
+                          <div className="flex items-center space-x-4 relative">
+                            <CommentComponent
+                              entityType="post"
+                              entityId={parseInt(item.id.toString())}
+                              className="inline-flex"
+                            />
                           </div>
                         </div>
                       </div>
@@ -431,12 +439,30 @@ const Feed: React.FC = () => {
                     <h4 className="text-lg font-semibold text-gray-900 mb-2">{item.title || item.review_title || 'Review'}</h4>
                     <p className="text-gray-700 mb-4">{item.body || item.review_text || item.content}</p>
                     
-                    {/* Review voting component */}
+                    {/* Review Photos */}
                     <div className="mb-4">
+                      <PhotoGallery
+                        type="reviews"
+                        sourceId={parseInt(item.id.toString())}
+                        canDelete={false}
+                        className="w-full"
+                      />
+                    </div>
+                    
+                    {/* Review voting and comments component */}
+                    <div className="mb-4 flex items-center justify-between text-sm text-gray-500">
                       <VoteComponent 
                         entityType="review" 
                         entityId={parseInt(item.id.toString())}
+                        className="flex items-center space-x-4"
                       />
+                      <div className="flex items-center space-x-4 relative">
+                        <CommentComponent
+                          entityType="review"
+                          entityId={parseInt(item.id.toString())}
+                          className="inline-flex"
+                        />
+                      </div>
                     </div>
                     
                     {(() => {
