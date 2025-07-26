@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Entity, Review, Post, Notification, SimplePost, RateMyWorkPost } from '../types';
+import { useAuth } from './AuthContext';
 
 interface AppContextType {
   entities: Entity[];
@@ -36,6 +37,7 @@ interface AppProviderProps {
 }
 
 export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
+  const { user } = useAuth();
   const [entities, setEntities] = useState<Entity[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [posts, setPosts] = useState<Post[]>([]);
@@ -99,6 +101,12 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   };
 
   const addReview = async (reviewData: Omit<Review, 'id' | 'createdAt'>) => {
+    // Prevent admin users from adding reviews
+    if (user?.isAdmin || user?.role === 'admin') {
+      console.warn('Admin users cannot add reviews');
+      return;
+    }
+
     try {
       console.log('Adding review to backend:', reviewData);
       
@@ -166,6 +174,12 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   };
 
   const ratePost = (postId: string, userId: string, rating: number) => {
+    // Prevent admin users from rating posts
+    if (user?.isAdmin || user?.role === 'admin') {
+      console.warn('Admin users cannot rate posts');
+      return;
+    }
+
     const updatedPosts = posts.map(post => {
       if (post.id === postId && post.type === 'rate-my-work') {
         const existingRatingIndex = post.ratings.findIndex(r => r.userId === userId);
@@ -199,6 +213,12 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   };
 
   const votePost = async (postId: string, voteType: 'up' | 'down') => {
+    // Prevent admin users from voting on posts
+    if (user?.isAdmin || user?.role === 'admin') {
+      console.warn('Admin users cannot vote on posts');
+      return;
+    }
+
     try {
       console.log('Voting on post:', postId, 'Vote type:', voteType);
       
@@ -237,6 +257,12 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   };
 
   const addComment = (postId: string, comment: { userId?: string; userName?: string; content: string; isAnonymous: boolean }) => {
+    // Prevent admin users from adding comments
+    if (user?.isAdmin || user?.role === 'admin') {
+      console.warn('Admin users cannot add comments');
+      return;
+    }
+
     const newComment = {
       id: Date.now().toString(),
       ...comment,

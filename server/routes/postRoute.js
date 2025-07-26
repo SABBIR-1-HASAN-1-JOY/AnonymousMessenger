@@ -5,7 +5,8 @@ const {
   getAllPosts, 
   getPostsByUser, 
   votePost,
-  ratePost
+  ratePost,
+  updatePost
 } = require('../controllers/postControllers');
 
 const {
@@ -31,5 +32,8 @@ router.post('/:postId/vote', validateVotePost, votePost);
 
 // Rate a post (for rate-my-work posts)
 router.post('/:postId/rate', ratePost);
+
+// Update a post
+router.put('/:postId', updatePost);
 
 module.exports = router;

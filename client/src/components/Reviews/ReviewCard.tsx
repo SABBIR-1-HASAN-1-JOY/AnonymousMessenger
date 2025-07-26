@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Calendar, Star, User } from 'lucide-react';
+import { Calendar, Star, User, Edit3, Save, X } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useApp } from '../../context/AppContext';
 import VoteComponent from '../common/VoteComponent';
@@ -33,11 +33,67 @@ const ReviewCard: React.FC<ReviewCardProps> = ({
 }) => {
   const { user } = useAuth();
   const { entities } = useApp();
+  const [isEditing, setIsEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState(review.title);
+  const [editBody, setEditBody] = useState(review.body);
+  const [editRating, setEditRating] = useState(review.rating);
+  const [saving, setSaving] = useState(false);
+  const [currentReview, setCurrentReview] = useState(review);
+
+  const handleEditStart = () => {
+    setIsEditing(true);
+  };
+
+  const handleEditCancel = () => {
+    setIsEditing(false);
+    setEditTitle(currentReview.title);
+    setEditBody(currentReview.body);
+    setEditRating(currentReview.rating);
+  };
+
+  const handleEditSave = async () => {
+    if (!currentReview || !user) return;
+    
+    setSaving(true);
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/reviews/${currentReview.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({
+          title: editTitle,
+          body: editBody,
+          rating: editRating
+        })
+      });
+
+      if (response.ok) {
+        const updatedReview = { 
+          ...currentReview, 
+          title: editTitle,
+          body: editBody,
+          rating: editRating
+        };
+        setCurrentReview(updatedReview);
+        setIsEditing(false);
+      } else {
+        console.error('Failed to update review');
+        alert('Failed to update review');
+      }
+    } catch (error) {
+      console.error('Error updating review:', error);
+      alert('Error updating review');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const getRelationshipTag = () => {
     if (!user) return null;
     
-    if (review.userId === parseInt(user.id.toString())) {
+    if (currentReview.userId === parseInt(user.id.toString())) {
       return { text: 'Your review', color: 'bg-blue-100 text-blue-800' };
     }
     
@@ -56,8 +112,8 @@ const ReviewCard: React.FC<ReviewCardProps> = ({
   };
 
   const entity = entities.find(e => 
-    (parseInt(e.id?.toString() || '0') === review.entityId) || 
-    (parseInt(e.item_id?.toString() || '0') === review.entityId)
+    (parseInt(e.id?.toString() || '0') === currentReview.entityId) || 
+    (parseInt(e.item_id?.toString() || '0') === currentReview.entityId)
   );
 
   const relationshipTag = getRelationshipTag();
@@ -69,14 +125,14 @@ const ReviewCard: React.FC<ReviewCardProps> = ({
         <div className="flex items-center mb-4">
           <div className="w-12 h-12 bg-gradient-to-r from-teal-500 to-blue-500 rounded-full flex items-center justify-center">
             <span className="text-white font-medium text-lg">
-              {review.userName.charAt(0)}
+              {currentReview.userName.charAt(0)}
             </span>
           </div>
           <div className="ml-4 flex-1">
             <div className="flex items-center justify-between">
               <div>
                 <div className="flex items-center gap-2 mb-1">
-                  <h3 className="font-semibold text-gray-900">{review.userName}</h3>
+                  <h3 className="font-semibold text-gray-900">{currentReview.userName}</h3>
                   {relationshipTag && (
                     <span className={`px-2 py-1 text-xs font-medium rounded-full ${relationshipTag.color}`}>
                       {relationshipTag.text}
@@ -85,13 +141,22 @@ const ReviewCard: React.FC<ReviewCardProps> = ({
                 </div>
                 <div className="flex items-center text-sm text-gray-500">
                   <Calendar className="w-4 h-4 mr-1" />
-                  {new Date(review.createdAt).toLocaleDateString()}
+                  {new Date(currentReview.createdAt).toLocaleDateString()}
                   <span className="mx-2">•</span>
                   <span className="capitalize">Review</span>
                 </div>
               </div>
-              <div className="flex items-center">
-                {renderStars(review.rating)}
+              <div className="flex items-center gap-2">
+                {renderStars(currentReview.rating)}
+                {currentReview.userId === parseInt(user?.id?.toString() || '0') && (
+                  <button
+                    onClick={handleEditStart}
+                    className="ml-2 flex items-center gap-1 px-2 py-1 text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-md transition-colors"
+                  >
+                    <Edit3 className="w-3 h-3" />
+                    Edit
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -100,19 +165,95 @@ const ReviewCard: React.FC<ReviewCardProps> = ({
 
       {/* Content */}
       <div>
-        <h4 className="text-lg font-semibold text-gray-900 mb-2">{review.title}</h4>
-        <p className="text-gray-700 mb-4">{review.body}</p>
+        {isEditing ? (
+          <div className="space-y-4 mb-4">
+            {/* Edit form */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Review Title
+              </label>
+              <input
+                type="text"
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+                className="w-full p-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Review title..."
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Rating
+              </label>
+              <div className="flex items-center gap-1">
+                {Array.from({ length: 5 }, (_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setEditRating(i + 1)}
+                    className="p-1"
+                  >
+                    <Star
+                      className={`w-5 h-5 ${
+                        i < editRating ? 'text-yellow-400 fill-current' : 'text-gray-300'
+                      } hover:text-yellow-400 transition-colors`}
+                    />
+                  </button>
+                ))}
+                <span className="ml-2 text-sm text-gray-600">
+                  {editRating} out of 5 stars
+                </span>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Review Content
+              </label>
+              <textarea
+                value={editBody}
+                onChange={(e) => setEditBody(e.target.value)}
+                className="w-full p-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+                rows={4}
+                placeholder="Write your review..."
+              />
+            </div>
+            
+            {/* Action buttons */}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleEditSave}
+                disabled={saving}
+                className="flex items-center gap-1 px-3 py-2 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Save className="w-3 h-3" />
+                {saving ? 'Saving...' : 'Save'}
+              </button>
+              <button
+                onClick={handleEditCancel}
+                className="flex items-center gap-1 px-3 py-2 text-sm bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300"
+              >
+                <X className="w-3 h-3" />
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <h4 className="text-lg font-semibold text-gray-900 mb-2">{currentReview.title}</h4>
+            <p className="text-gray-700 mb-4">{currentReview.body}</p>
+          </>
+        )}
         
         {/* Review voting and report component */}
         <div className="mb-4 flex items-center justify-between">
           <VoteComponent 
             entityType="review" 
-            entityId={review.id}
+            entityId={currentReview.id}
           />
           <ReportButton
             itemType="review"
-            itemId={review.id}
-            reportedUserId={review.userId}
+            itemId={currentReview.id}
+            reportedUserId={currentReview.userId}
           />
         </div>
         
@@ -131,7 +272,7 @@ const ReviewCard: React.FC<ReviewCardProps> = ({
         <div className="mt-4 border-t pt-4">
           <CommentComponent 
             entityType="review" 
-            entityId={review.id} 
+            entityId={currentReview.id} 
           />
         </div>
       </div>

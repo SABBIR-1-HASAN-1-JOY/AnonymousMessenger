@@ -100,23 +100,48 @@ const getUserInfoForReport = `
 
 // Get post info for report
 const getPostInfo = `
-  SELECT post_id, title, user_id, content
-  FROM posts 
-  WHERE post_id = $1 AND deleted_at IS NULL
+  SELECT 
+    p.post_id,
+    p.post_text,
+    p.user_id,
+    p.is_rate_enabled,
+    p.ratingpoint,
+    p.created_at,
+    u.username as user_name
+  FROM post p
+  LEFT JOIN "user" u ON p.user_id = u.user_id
+  WHERE p.post_id = $1
 `;
 
 // Get comment info for report
 const getCommentInfo = `
-  SELECT comment_id, content, user_id, post_id
-  FROM comments 
-  WHERE comment_id = $1 AND deleted_at IS NULL
+  SELECT 
+    c.comment_id,
+    c.comment_text,
+    c.user_id,
+    c.entity_type,
+    c.entity_id,
+    c.created_at,
+    u.username as user_name
+  FROM comments c
+  LEFT JOIN "user" u ON c.user_id = u.user_id
+  WHERE c.comment_id = $1
 `;
 
 // Get review info for report
 const getReviewInfo = `
-  SELECT review_id, title, body, user_id, entity_id
-  FROM reviews 
-  WHERE review_id = $1 AND deleted_at IS NULL
+  SELECT 
+    r.review_id,
+    r.review_text,
+    r.title,
+    r.ratingpoint,
+    r.user_id,
+    r.item_id,
+    r.created_at,
+    u.username as user_name
+  FROM review r
+  LEFT JOIN "user" u ON r.user_id = u.user_id
+  WHERE r.review_id = $1
 `;
 
 // Update report status to resolved

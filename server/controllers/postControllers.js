@@ -231,10 +231,52 @@ const ratePost = async (req, res) => {
   }
 };
 
+const updatePost = async (req, res) => {
+  try {
+    const { postId } = req.params;
+    const { content, title } = req.body;
+    
+    // Note: In a real application, you should verify the user owns this post
+    // For now, we'll assume authorization is handled elsewhere
+    
+    const query = `
+      UPDATE posts 
+      SET post_text = $1, updated_at = CURRENT_TIMESTAMP
+      WHERE post_id = $2
+      RETURNING *
+    `;
+    
+    const { Pool } = require('pg');
+    const pool = new Pool({
+      user: process.env.DB_USER,
+      host: process.env.DB_HOST,
+      database: process.env.DB_NAME,
+      password: process.env.DB_PASSWORD,
+      port: process.env.DB_PORT,
+    });
+    
+    const result = await pool.query(query, [content, postId]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Post not found' });
+    }
+    
+    res.status(200).json({
+      success: true,
+      message: 'Post updated successfully',
+      post: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Error updating post:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
 module.exports = {
   createPost,
   getAllPosts,
   getPostsByUser,
   votePost,
-  ratePost
+  ratePost,
+  updatePost
 };

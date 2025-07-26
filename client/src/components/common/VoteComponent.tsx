@@ -89,6 +89,12 @@ const VoteComponent: React.FC<VoteComponentProps> = ({
       return;
     }
 
+    // Prevent admin users from voting
+    if (user?.isAdmin || user?.role === 'admin') {
+      alert('Admin users cannot vote on posts or reviews');
+      return;
+    }
+
     setLoading(true);
     try {
       const response = await fetch('http://localhost:3000/api/votes/vote', {

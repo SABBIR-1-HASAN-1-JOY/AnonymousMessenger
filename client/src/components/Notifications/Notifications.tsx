@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Bell, Star, MessageCircle, UserPlus, Eye, CheckCheck, Trash2 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 interface Notification {
   notification_id: string;
@@ -19,6 +20,7 @@ interface Notification {
 
 const Notifications: React.FC = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -28,24 +30,43 @@ const Notifications: React.FC = () => {
     if (!user) return;
     
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/notifications/user/${user.id}`, {
+      // Fallback to localhost:3000 if environment variable is not set
+      const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
+      const url = `${baseUrl}/api/notifications/user/${user.id}`;
+      
+      console.log('Fetching notifications from:', url);
+      console.log('User ID:', user.id);
+      
+      const response = await fetch(url, {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Content-Type': 'application/json',
+          // Remove authorization header for now since this is demo mode
         }
       });
       
-      if (!response.ok) throw new Error('Failed to fetch notifications');
+      console.log('Response status:', response.status);
+      console.log('Response headers:', response.headers);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Response error text:', errorText);
+        throw new Error(`Failed to fetch notifications: ${response.status} ${response.statusText}`);
+      }
       
       const data = await response.json();
+      console.log('Response data:', data);
+      
       if (data.success) {
         setNotifications(data.notifications);
         setUnreadCount(data.unreadCount);
+        setError(null);
       } else {
         throw new Error(data.message || 'Failed to fetch notifications');
       }
     } catch (error) {
       console.error('Error fetching notifications:', error);
-      setError('Failed to load notifications');
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      setError(`Failed to load notifications: ${errorMessage}`);
     } finally {
       setLoading(false);
     }
@@ -120,6 +141,69 @@ const Notifications: React.FC = () => {
     }
   };
 
+  const handleNotificationClick = async (notification: Notification) => {
+    // Mark as read when clicked
+    if (!notification.is_read) {
+      await markAsRead(notification.notification_id);
+    }
+
+    // Navigate based on notification type and entity
+    switch (notification.notification_type) {
+      case 'follow':
+        // Navigate to the follower's profile
+        if (notification.actor_user_id) {
+          navigate(`/profile/${notification.actor_user_id}`);
+        }
+        break;
+      
+      case 'comment':
+        // Navigate to the feed with highlighted content for comments
+        // Include actor_user_id to highlight the specific comment from that user
+        const highlightComment = notification.actor_user_id ? `&highlightUser=${notification.actor_user_id}` : '';
+        
+        if (notification.entity_type === 'post' && notification.entity_id) {
+          navigate(`/feed?highlight=post-${notification.entity_id}${highlightComment}#comments`);
+        } else if (notification.entity_type === 'rate-my-work' && notification.entity_id) {
+          navigate(`/feed?highlight=rate-my-work-${notification.entity_id}${highlightComment}#comments`);
+        } else if (notification.entity_type === 'review' && notification.entity_id) {
+          navigate(`/feed?highlight=review-${notification.entity_id}${highlightComment}#comments`);
+        } else {
+          // Fallback to feed
+          navigate('/feed');
+        }
+        break;
+      
+      case 'vote':
+        // Navigate to the voted content
+        if (notification.entity_type === 'post' && notification.entity_id) {
+          navigate(`/posts/${notification.entity_id}`);
+        } else if (notification.entity_type === 'rate-my-work' && notification.entity_id) {
+          navigate(`/rate-my-work/${notification.entity_id}`);
+        } else if (notification.entity_type === 'review' && notification.entity_id) {
+          navigate(`/reviews/${notification.entity_id}`);
+        } else {
+          // Fallback to feed
+          navigate('/feed');
+        }
+        break;
+      
+      case 'rating':
+        // Navigate to the rated rate-my-work content
+        if (notification.entity_type === 'rate-my-work' && notification.entity_id) {
+          navigate(`/rate-my-work/${notification.entity_id}`);
+        } else {
+          // Fallback to feed
+          navigate('/feed');
+        }
+        break;
+      
+      default:
+        // Default to feed page
+        navigate('/feed');
+        console.log('Unknown notification type:', notification.notification_type);
+    }
+  };
+
   useEffect(() => {
     fetchNotifications();
     
@@ -134,6 +218,27 @@ const Notifications: React.FC = () => {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <h2 className="text-2xl font-bold text-gray-900 mb-4">Please log in to view notifications</h2>
+        </div>
+      </div>
+    );
+  }
+
+  // Admin restriction - redirect admins away from notifications
+  if (user.role === 'admin') {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <Bell className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">Access Restricted</h2>
+          <p className="text-gray-600 mb-6">
+            Notifications are only available for regular users. As an admin, please use the admin dashboard.
+          </p>
+          <button 
+            onClick={() => navigate('/admin')}
+            className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 transition-colors"
+          >
+            Go to Admin Dashboard
+          </button>
         </div>
       </div>
     );
@@ -204,7 +309,7 @@ const Notifications: React.FC = () => {
             <div>
               <h1 className="text-3xl font-bold text-gray-900">Notifications</h1>
               <p className="mt-2 text-gray-600">
-                Stay updated with your activity and interactions
+                Stay updated with your activity and interactions. Click on any notification to view the content.
               </p>
             </div>
             <div className="flex items-center space-x-3">
@@ -233,35 +338,46 @@ const Notifications: React.FC = () => {
               {notifications.map((notification) => (
                 <div
                   key={notification.notification_id}
-                  className={`p-6 hover:bg-gray-50 transition-colors ${
+                  className={`hover:bg-gray-50 transition-colors ${
                     !notification.is_read ? 'bg-blue-50 border-l-4 border-blue-500' : ''
                   }`}
                 >
                   <div className="flex items-start">
-                    <div className="flex-shrink-0 mr-4">
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                        !notification.is_read ? 'bg-blue-100' : 'bg-gray-100'
-                      }`}>
-                        {getNotificationIcon(notification.notification_type)}
+                    {/* Clickable notification content */}
+                    <div 
+                      className="flex-1 p-6 cursor-pointer flex items-start hover:bg-gray-100 rounded-l-lg transition-colors"
+                      onClick={() => handleNotificationClick(notification)}
+                      title="Click to view content"
+                    >
+                      <div className="flex-shrink-0 mr-4">
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                          !notification.is_read ? 'bg-blue-100' : 'bg-gray-100'
+                        }`}>
+                          {getNotificationIcon(notification.notification_type)}
+                        </div>
+                      </div>
+                      
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-sm ${
+                          !notification.is_read ? 'font-medium text-gray-900' : 'text-gray-700'
+                        }`}>
+                          {notification.message}
+                        </p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {new Date(notification.created_at).toLocaleDateString()} at{' '}
+                          {new Date(notification.created_at).toLocaleTimeString()}
+                        </p>
                       </div>
                     </div>
                     
-                    <div className="flex-1 min-w-0">
-                      <p className={`text-sm ${
-                        !notification.is_read ? 'font-medium text-gray-900' : 'text-gray-700'
-                      }`}>
-                        {notification.message}
-                      </p>
-                      <p className="text-xs text-gray-500 mt-1">
-                        {new Date(notification.created_at).toLocaleDateString()} at{' '}
-                        {new Date(notification.created_at).toLocaleTimeString()}
-                      </p>
-                    </div>
-                    
-                    <div className="flex items-center space-x-2">
+                    {/* Action buttons */}
+                    <div className="flex items-center space-x-2 p-6 pl-0">
                       {!notification.is_read && (
                         <button
-                          onClick={() => handleMarkAsRead(notification.notification_id)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleMarkAsRead(notification.notification_id);
+                          }}
                           className="p-2 text-gray-400 hover:text-green-600 transition-colors"
                           title="Mark as read"
                         >
@@ -269,7 +385,10 @@ const Notifications: React.FC = () => {
                         </button>
                       )}
                       <button
-                        onClick={() => handleDeleteNotification(notification.notification_id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteNotification(notification.notification_id);
+                        }}
                         className="p-2 text-gray-400 hover:text-red-600 transition-colors"
                         title="Delete notification"
                       >

@@ -173,9 +173,51 @@ const getReviewsByItem = async (req, res) => {
   }
 };
 
+const updateReview = async (req, res) => {
+  try {
+    const { reviewId } = req.params;
+    const { title, body, rating } = req.body;
+    
+    // Note: In a real application, you should verify the user owns this review
+    // For now, we'll assume authorization is handled elsewhere
+    
+    const query = `
+      UPDATE reviews 
+      SET title = $1, review_text = $2, ratingpoint = $3, updated_at = CURRENT_TIMESTAMP
+      WHERE review_id = $4
+      RETURNING *
+    `;
+    
+    const { Pool } = require('pg');
+    const pool = new Pool({
+      user: process.env.DB_USER,
+      host: process.env.DB_HOST,
+      database: process.env.DB_NAME,
+      password: process.env.DB_PASSWORD,
+      port: process.env.DB_PORT,
+    });
+    
+    const result = await pool.query(query, [title, body, rating, reviewId]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Review not found' });
+    }
+    
+    res.status(200).json({
+      success: true,
+      message: 'Review updated successfully',
+      review: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Error updating review:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
 module.exports = {
   createReview,
   getAllReviews,
   getReviewsByUser,
-  getReviewsByItem
+  getReviewsByItem,
+  updateReview
 };

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useParams, useLocation, useNavigate } from 'react-router-dom';
 import { MessageCircle, Star, Calendar, User } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { useAuth } from '../../context/AuthContext';
@@ -12,9 +12,95 @@ import ReportButton from '../Reports/ReportButton';
 const Feed: React.FC = () => {
   const { posts, reviews, entities, setPosts } = useApp();
   const { user } = useAuth();
+  const { id } = useParams();
+  const location = useLocation();
+  const navigate = useNavigate();
   const [filter, setFilter] = useState<'all' | 'posts' | 'reviews'>('all');
   const [userRatings, setUserRatings] = useState<Record<string, number>>({});
   const [followingUsers, setFollowingUsers] = useState<string[]>([]);
+  const [expandedComments, setExpandedComments] = useState<Set<string>>(new Set());
+
+  // Determine content type from route or query params
+  const getContentTypeFromRoute = () => {
+    if (location.pathname.includes('/posts/')) return 'post';
+    if (location.pathname.includes('/reviews/')) return 'review';
+    if (location.pathname.includes('/rate-my-work/')) return 'rate-my-work';
+    
+    // Check query params for highlight
+    const urlParams = new URLSearchParams(location.search);
+    const highlight = urlParams.get('highlight');
+    const highlightUser = urlParams.get('highlightUser');
+    if (highlight) {
+      const [type, id] = highlight.split('-');
+      return { type, id, highlightUser };
+    }
+    
+    return null;
+  };
+
+  const targetContent = getContentTypeFromRoute();
+  const targetContentType = typeof targetContent === 'string' ? targetContent : targetContent?.type;
+  const targetContentId = typeof targetContent === 'string' ? id : targetContent?.id;
+  const highlightUserId = typeof targetContent === 'object' ? targetContent?.highlightUser : null;
+
+  // Handle click on post/review/rate-my-work to navigate to detail view
+  const handleContentClick = (item: any, event: React.MouseEvent) => {
+    // Don't navigate if clicking on interactive elements
+    const target = event.target as HTMLElement;
+    if (target.closest('a, button, input, textarea, [role="button"]')) {
+      return;
+    }
+
+    const itemId = item.id || item.review_id || item.post_id;
+    
+    if (item.itemType === 'post') {
+      if (item.type === 'rate-my-work' || item.isRatedEnabled || item.is_rate_enabled) {
+        navigate(`/rate-my-work/${itemId}`);
+      } else {
+        navigate(`/posts/${itemId}`);
+      }
+    } else if (item.itemType === 'review') {
+      navigate(`/reviews/${itemId}`);
+    }
+  };
+
+  // Scroll to target content when component mounts
+  React.useEffect(() => {
+    if (targetContentType && targetContentId) {
+      const timer = setTimeout(() => {
+        const element = document.getElementById(`${targetContentType}-${targetContentId}`);
+        if (element) {
+          element.scrollIntoView({ 
+            behavior: 'smooth', 
+            block: 'center',
+            inline: 'nearest'
+          });
+          // Add a brief highlight effect
+          element.style.transition = 'box-shadow 0.3s ease';
+          element.style.boxShadow = '0 0 20px rgba(59, 130, 246, 0.5)';
+          setTimeout(() => {
+            element.style.boxShadow = '';
+          }, 2000);
+
+          // If hash includes comments, expand comments section
+          if (location.hash.includes('comments')) {
+            const contentKey = `${targetContentType}-${targetContentId}`;
+            setExpandedComments(prev => new Set(prev).add(contentKey));
+            
+            // Try to trigger comment section visibility
+            setTimeout(() => {
+              const commentButton = element.querySelector('[aria-label*="comment"], [title*="comment"], .comment-button, button[data-comment-toggle]');
+              if (commentButton && commentButton instanceof HTMLElement) {
+                commentButton.click();
+              }
+            }, 100);
+          }
+        }
+      }, 500); // Wait for content to load
+      
+      return () => clearTimeout(timer);
+    }
+  }, [targetContentType, targetContentId, posts, reviews, location.hash]);
 
   // Load user ratings from localStorage on component mount
   React.useEffect(() => {
@@ -313,8 +399,26 @@ const Feed: React.FC = () => {
         {/* Feed Items */}
         <div className="space-y-6">
           {feedItems.length > 0 ? (
-            feedItems.map((item) => (
-              <div key={`${item.itemType}-${item.id}`} className="bg-white rounded-xl shadow-md p-6">
+            feedItems.map((item) => {
+              const itemId = item.itemType === 'post' ? item.post_id || item.id : item.review_id || item.id;
+              const isTargetContent = targetContentType && targetContentId && 
+                                    item.itemType === targetContentType && 
+                                    itemId?.toString() === targetContentId;
+              
+              return (
+                <div 
+                  key={`${item.itemType}-${itemId}`} 
+                  id={`${item.itemType}-${itemId}`}
+                  className={`bg-white rounded-xl shadow-md p-6 transition-all duration-300 cursor-pointer hover:shadow-lg ${
+                    isTargetContent ? 'ring-2 ring-blue-500 bg-blue-50' : ''
+                  }`}
+                  onClick={(e) => handleContentClick(item, e)}
+                >
+                  {isTargetContent && (
+                    <div className="mb-4 p-2 bg-blue-100 border border-blue-300 rounded-lg text-blue-800 text-sm">
+                      📍 You've been directed to this content from a notification
+                    </div>
+                  )}
                 {/* Header */}
                 <div className="flex items-center mb-4">
                   <Link 
@@ -384,7 +488,10 @@ const Feed: React.FC = () => {
                             averageRating={Number(item.averageRating) || Number(item.ratingpoint) || 0}
                             totalRatings={Number(item.totalRatings) || 0}
                             onRate={(rating) => handleRatePost(item.id, rating)}
-                            disabled={(item.userId || item.user_id?.toString()) === user?.id} // Don't allow users to rate their own posts
+                            disabled={
+                              (item.userId || item.user_id?.toString()) === user?.id || // Don't allow users to rate their own posts
+                              user?.isAdmin || user?.role === 'admin' // Don't allow admin users to rate posts
+                            }
                           />
                           {(item.userId || item.user_id?.toString()) === user?.id && (
                             <p className="text-sm text-gray-500 mt-2">
@@ -404,6 +511,8 @@ const Feed: React.FC = () => {
                               entityType="post"
                               entityId={parseInt(item.id.toString())}
                               className="inline-flex"
+                              autoExpand={expandedComments.has(`${item.itemType}-${item.id}`)}
+                              highlightUserId={highlightUserId || undefined}
                             />
                             <ReportButton
                               itemType="post"
@@ -435,6 +544,8 @@ const Feed: React.FC = () => {
                               entityType="post"
                               entityId={parseInt(item.id.toString())}
                               className="inline-flex"
+                              autoExpand={expandedComments.has(`${item.itemType}-${item.id}`)}
+                              highlightUserId={highlightUserId || undefined}
                             />
                             <ReportButton
                               itemType="post"
@@ -472,6 +583,8 @@ const Feed: React.FC = () => {
                           entityType="review"
                           entityId={parseInt(item.id.toString())}
                           className="inline-flex"
+                          autoExpand={expandedComments.has(`${item.itemType}-${item.id}`)}
+                          highlightUserId={highlightUserId || undefined}
                         />
                         <ReportButton
                           itemType="review"
@@ -497,7 +610,8 @@ const Feed: React.FC = () => {
                   </div>
                 )}
               </div>
-            ))
+              )
+            })
           ) : (
             <div className="text-center py-12">
               <MessageCircle className="w-16 h-16 text-gray-400 mx-auto mb-4" />

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Flag, Eye, Check, X, Trash2, AlertTriangle } from 'lucide-react';
+import { Flag, Eye, Check, X, Trash2, AlertTriangle, ChevronDown, ChevronUp, ExternalLink } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
 interface Report {
@@ -25,6 +25,33 @@ interface ReportStats {
   dismissed_reports: number;
 }
 
+interface ReportedContent {
+  type: 'post' | 'comment' | 'review';
+  content?: {
+    id?: number;
+    post_id?: number;
+    comment_id?: number;
+    review_id?: number;
+    text?: string;
+    title?: string;
+    content?: string;
+    post_text?: string;
+    comment_text?: string;
+    reviewText?: string;
+    review_text?: string;
+    rating?: number;
+    ratingpoint?: string;
+    author?: string;
+    user_name?: string;
+    created_at?: string;
+    upvotes?: number;
+    downvotes?: number;
+    is_rate_enabled?: boolean;
+    entity_type?: string;
+    entity_id?: number;
+  };
+}
+
 const AdminReports: React.FC = () => {
   const { user } = useAuth();
   const [reports, setReports] = useState<Report[]>([]);
@@ -32,6 +59,8 @@ const AdminReports: React.FC = () => {
   const [selectedStatus, setSelectedStatus] = useState<string>('pending');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [expandedReports, setExpandedReports] = useState<Set<number>>(new Set());
+  const [reportedContent, setReportedContent] = useState<Map<number, ReportedContent>>(new Map());
 
   useEffect(() => {
     fetchReports();
@@ -101,6 +130,101 @@ const AdminReports: React.FC = () => {
     }
   };
 
+  const fetchReportedContent = async (reportedItemType: string, reportedItemId: number) => {
+    try {
+      // Use admin content endpoint first
+      let endpoint = `http://localhost:3000/api/admin/content/${reportedItemType}/${reportedItemId}?adminId=${user?.id}`;
+      
+      let response = await fetch(endpoint);
+      let data = await response.json();
+      
+      if (data.success && data.data) {
+        return {
+          type: reportedItemType as 'post' | 'comment' | 'review',
+          content: data.data
+        };
+      }
+      
+      // Fallback to individual endpoints if admin endpoint fails
+      switch (reportedItemType) {
+        case 'post':
+          // Try to get post from posts endpoint - may need to be implemented
+          endpoint = `http://localhost:3000/api/posts`;
+          response = await fetch(endpoint);
+          data = await response.json();
+          if (data.success) {
+            const post = data.posts?.find((p: any) => p.post_id === reportedItemId || p.id === reportedItemId);
+            if (post) {
+              return {
+                type: 'post',
+                content: post
+              };
+            }
+          }
+          break;
+          
+        case 'comment':
+          endpoint = `http://localhost:3000/api/comments/${reportedItemId}`;
+          response = await fetch(endpoint);
+          data = await response.json();
+          if (data.success && data.comment) {
+            return {
+              type: 'comment',
+              content: data.comment
+            };
+          }
+          break;
+          
+        case 'review':
+          // Try to get review from reviews endpoint
+          endpoint = `http://localhost:3000/api/reviews`;
+          response = await fetch(endpoint);
+          data = await response.json();
+          if (data.success) {
+            const review = data.reviews?.find((r: any) => r.review_id === reportedItemId || r.id === reportedItemId);
+            if (review) {
+              return {
+                type: 'review',
+                content: review
+              };
+            }
+          }
+          break;
+          
+        default:
+          console.error('Unknown reported item type:', reportedItemType);
+          return null;
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('Error fetching reported content:', error);
+      return null;
+    }
+  };
+
+  const toggleReportExpansion = async (reportId: number, reportedItemType: string, reportedItemId: number) => {
+    const newExpandedReports = new Set(expandedReports);
+    
+    if (expandedReports.has(reportId)) {
+      newExpandedReports.delete(reportId);
+    } else {
+      newExpandedReports.add(reportId);
+      
+      // Fetch content if not already cached
+      if (!reportedContent.has(reportId)) {
+        const content = await fetchReportedContent(reportedItemType, reportedItemId);
+        if (content) {
+          const newReportedContent = new Map(reportedContent);
+          newReportedContent.set(reportId, content as ReportedContent);
+          setReportedContent(newReportedContent);
+        }
+      }
+    }
+    
+    setExpandedReports(newExpandedReports);
+  };
+
   const deleteReport = async (reportId: number) => {
     if (!confirm('Are you sure you want to delete this report?')) {
       return;
@@ -144,6 +268,88 @@ const AdminReports: React.FC = () => {
       case 'Inappropriate Content': return 'bg-yellow-100 text-yellow-800';
       default: return 'bg-gray-100 text-gray-800';
     }
+  };
+
+  const renderReportedContent = (content: ReportedContent) => {
+    if (!content.content) {
+      return (
+        <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+          <p className="text-red-600 text-sm">Content could not be loaded or may have been deleted.</p>
+        </div>
+      );
+    }
+
+    const { type, content: item } = content;
+
+    return (
+      <div className="mt-4 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+        <div className="flex items-center justify-between mb-3">
+          <h4 className="font-medium text-gray-900 capitalize">Reported {type} Content</h4>
+          <span className="text-xs text-gray-500">
+            ID: {item.post_id || item.comment_id || item.review_id} | Created: {item.created_at ? new Date(item.created_at).toLocaleDateString() : 'Unknown'}
+          </span>
+        </div>
+        
+        {type === 'post' && (
+          <div className="space-y-2">
+            <p className="text-gray-700">
+              {item.post_text || 'No content available'}
+            </p>
+            {item.user_name && (
+              <p className="text-sm text-gray-500">By: {item.user_name}</p>
+            )}
+            {item.is_rate_enabled && (
+              <div className="text-sm text-gray-500">
+                Rating enabled | Rating: {item.ratingpoint || 'No rating yet'}
+              </div>
+            )}
+          </div>
+        )}
+        
+        {type === 'comment' && (
+          <div className="space-y-2">
+            <p className="text-gray-700">
+              {item.comment_text || 'No content available'}
+            </p>
+            {item.user_name && (
+              <p className="text-sm text-gray-500">By: {item.user_name}</p>
+            )}
+            {item.entity_type && item.entity_id && (
+              <p className="text-sm text-gray-500">
+                Comment on {item.entity_type} #{item.entity_id}
+              </p>
+            )}
+          </div>
+        )}
+        
+        {type === 'review' && (
+          <div className="space-y-2">
+            {item.title && (
+              <h5 className="font-medium text-gray-800">{item.title}</h5>
+            )}
+            <p className="text-gray-700">
+              {item.review_text || 'No content available'}
+            </p>
+            {item.user_name && (
+              <p className="text-sm text-gray-500">By: {item.user_name}</p>
+            )}
+            {item.ratingpoint && (
+              <div className="flex items-center">
+                <span className="text-sm text-gray-600 mr-2">Rating:</span>
+                <div className="flex items-center">
+                  {Array.from({ length: 5 }, (_, i) => (
+                    <span key={i} className={`text-sm ${i < parseFloat(item.ratingpoint || '0') ? 'text-yellow-400' : 'text-gray-300'}`}>
+                      ★
+                    </span>
+                  ))}
+                  <span className="ml-1 text-sm text-gray-600">({item.ratingpoint}/5)</span>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    );
   };
 
   if (!user || !user.isAdmin) {
@@ -258,10 +464,45 @@ const AdminReports: React.FC = () => {
                         )}
                       </div>
                       
-                      <div className="text-xs text-gray-500">
-                        Reported on {new Date(report.created_at).toLocaleDateString()} at{' '}
-                        {new Date(report.created_at).toLocaleTimeString()}
+                      <div className="flex items-center justify-between">
+                        <div className="text-xs text-gray-500">
+                          Reported on {new Date(report.created_at).toLocaleDateString()} at{' '}
+                          {new Date(report.created_at).toLocaleTimeString()}
+                        </div>
+                        
+                        <button
+                          onClick={() => toggleReportExpansion(report.report_id, report.reported_item_type, report.reported_item_id)}
+                          className="flex items-center text-sm text-blue-600 hover:text-blue-800 font-medium"
+                        >
+                          {expandedReports.has(report.report_id) ? (
+                            <>
+                              <ChevronUp className="w-4 h-4 mr-1" />
+                              Hide Content
+                            </>
+                          ) : (
+                            <>
+                              <ChevronDown className="w-4 h-4 mr-1" />
+                              View Content
+                            </>
+                          )}
+                        </button>
                       </div>
+                      
+                      {/* Expanded content */}
+                      {expandedReports.has(report.report_id) && (
+                        <div>
+                          {reportedContent.has(report.report_id) ? (
+                            renderReportedContent(reportedContent.get(report.report_id)!)
+                          ) : (
+                            <div className="mt-4 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                              <div className="flex items-center justify-center">
+                                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+                                <span className="ml-2 text-sm text-gray-600">Loading content...</span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                     
                     <div className="flex items-center space-x-2 ml-4">

@@ -799,12 +799,16 @@ const Profile: React.FC = () => {
                               averageRating={Number(post.ratingpoint) || 0}
                               totalRatings={post.ratingpoint ? 1 : 0} // Simple approach - indicates if rated
                               onRate={
-                                // Only allow rating if it's not the user's own post
-                                post.user_id.toString() !== user?.id?.toString()
+                                // Only allow rating if it's not the user's own post and user is not admin
+                                post.user_id.toString() !== user?.id?.toString() && 
+                                !user?.isAdmin && user?.role !== 'admin'
                                   ? (rating) => handleRatePost(post.post_id.toString(), rating)
                                   : undefined
                               }
-                              disabled={post.user_id.toString() === user?.id?.toString()}
+                              disabled={
+                                post.user_id.toString() === user?.id?.toString() || // Don't allow users to rate their own posts
+                                user?.isAdmin || user?.role === 'admin' // Don't allow admin users to rate posts
+                              }
                               className="w-full"
                             />
                             {post.user_id.toString() === user?.id?.toString() && (

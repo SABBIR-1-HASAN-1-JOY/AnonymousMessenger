@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { MessageCircle, Send, Reply } from 'lucide-react';
+import { MessageCircle, Send, Reply, Edit3, Save, X } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import ReportButton from '../Reports/ReportButton';
 
@@ -21,12 +21,16 @@ interface CommentComponentProps {
   entityType: 'post' | 'review';
   entityId: number;
   className?: string;
+  autoExpand?: boolean;
+  highlightUserId?: string;
 }
 
 const CommentComponent: React.FC<CommentComponentProps> = ({
   entityType,
   entityId,
-  className = ''
+  className = '',
+  autoExpand = false,
+  highlightUserId
 }) => {
   const { user } = useAuth();
   const [comments, setComments] = useState<Comment[]>([]);
@@ -36,6 +40,8 @@ const CommentComponent: React.FC<CommentComponentProps> = ({
   const [replyText, setReplyText] = useState('');
   const [loading, setLoading] = useState(false);
   const [showComments, setShowComments] = useState(false);
+  const [editingCommentId, setEditingCommentId] = useState<number | null>(null);
+  const [editText, setEditText] = useState('');
 
   useEffect(() => {
     // Initial load of comment count
@@ -61,9 +67,16 @@ const CommentComponent: React.FC<CommentComponentProps> = ({
     }
   }, [showComments, entityType, entityId]);
 
+  // Handle auto-expand from URL or props
+  useEffect(() => {
+    if (autoExpand && !showComments) {
+      setShowComments(true);
+    }
+  }, [autoExpand]);
+
   const fetchCommentCount = async () => {
     try {
-      const response = await fetch(`http://localhost:3000/api/comments/${entityType}/${entityId}/stats`);
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/comments/${entityType}/${entityId}/stats`);
       const data = await response.json();
       
       if (data.success && data.stats) {
@@ -82,7 +95,7 @@ const CommentComponent: React.FC<CommentComponentProps> = ({
 
   const fetchComments = async () => {
     try {
-      const response = await fetch(`http://localhost:3000/api/comments/${entityType}/${entityId}`);
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/comments/${entityType}/${entityId}`);
       const data = await response.json();
       
       if (data.success) {
@@ -127,9 +140,15 @@ const CommentComponent: React.FC<CommentComponentProps> = ({
     e.preventDefault();
     if (!user || !newComment.trim()) return;
 
+    // Prevent admin users from commenting
+    if (user?.isAdmin || user?.role === 'admin') {
+      alert('Admin users cannot add comments');
+      return;
+    }
+
     setLoading(true);
     try {
-      const response = await fetch('http://localhost:3000/api/comments', {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/comments`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -160,13 +179,75 @@ const CommentComponent: React.FC<CommentComponentProps> = ({
     }
   };
 
+  const handleEditComment = (commentId: number, currentText: string) => {
+    setEditingCommentId(commentId);
+    setEditText(currentText);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingCommentId(null);
+    setEditText('');
+  };
+
+  const handleSaveEdit = async (commentId: number) => {
+    if (!user || !editText.trim()) return;
+
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/comments/${commentId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({
+          commentText: editText.trim()
+        }),
+      });
+
+      if (response.ok) {
+        // Update the comment in the local state
+        setComments(prev => prev.map(comment => {
+          if (comment.comment_id === commentId) {
+            return { ...comment, comment_text: editText.trim() };
+          }
+          // Handle nested replies
+          if (comment.replies) {
+            return {
+              ...comment,
+              replies: comment.replies.map(reply => 
+                reply.comment_id === commentId 
+                  ? { ...reply, comment_text: editText.trim() }
+                  : reply
+              )
+            };
+          }
+          return comment;
+        }));
+        setEditingCommentId(null);
+        setEditText('');
+      } else {
+        console.error('Failed to update comment');
+        alert('Failed to update comment');
+      }
+    } catch (error) {
+      console.error('Error updating comment:', error);
+      alert('Error updating comment');
+    }
+  };
+
   const handleSubmitReply = async (e: React.FormEvent, parentId: number) => {
     e.preventDefault();
     if (!user || !replyText.trim()) return;
 
+    // Prevent admin users from replying to comments
+    if (user?.isAdmin || user?.role === 'admin') {
+      alert('Admin users cannot reply to comments');
+      return;
+    }
+
     setLoading(true);
     try {
-      const response = await fetch('http://localhost:3000/api/comments', {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/comments`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -210,36 +291,89 @@ const CommentComponent: React.FC<CommentComponentProps> = ({
     return `${Math.floor(diffInMinutes / 1440)}d ago`;
   };
 
-  const renderComment = (comment: Comment, isReply = false) => (
-    <div key={comment.comment_id} className={`${isReply ? 'ml-8 border-l-2 border-gray-200 pl-4' : ''} mb-4`}>
-      <div className="flex items-start space-x-3">
-        {/* Avatar */}
-        <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-teal-500 rounded-full flex items-center justify-center flex-shrink-0">
-          <span className="text-white font-medium text-sm">
-            {comment.username?.charAt(0)?.toUpperCase() || 'U'}
-          </span>
-        </div>
-
-        {/* Comment content */}
-        <div className="flex-1 min-w-0">
-          <div className="bg-gray-50 rounded-lg p-3">
-            <div className="flex items-center justify-between mb-1">
-              <span className="font-semibold text-sm text-gray-900">{comment.username}</span>
-              <span className="text-xs text-gray-500">{formatTimeAgo(comment.created_at)}</span>
-            </div>
-            <p className="text-gray-800 text-sm">{comment.comment_text}</p>
+  const renderComment = (comment: Comment, isReply = false) => {
+    // Check if this comment should be highlighted
+    const shouldHighlight = highlightUserId && comment.user_id.toString() === highlightUserId;
+    
+    return (
+      <div key={comment.comment_id} className={`${isReply ? 'ml-8 border-l-2 border-gray-200 pl-4' : ''} mb-4 ${
+        shouldHighlight ? 'ring-2 ring-yellow-400 bg-yellow-50 rounded-lg p-2' : ''
+      }`}>
+        <div className="flex items-start space-x-3">
+          {/* Avatar */}
+          <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-teal-500 rounded-full flex items-center justify-center flex-shrink-0">
+            <span className="text-white font-medium text-sm">
+              {comment.username?.charAt(0)?.toUpperCase() || 'U'}
+            </span>
           </div>
+
+          {/* Comment content */}
+          <div className="flex-1 min-w-0">
+            {shouldHighlight && (
+              <div className="mb-2 text-xs text-yellow-700 font-medium">
+                📍 Highlighted comment from notification
+              </div>
+            )}
+            <div className="bg-gray-50 rounded-lg p-3">
+              <div className="flex items-center justify-between mb-1">
+                <span className="font-semibold text-sm text-gray-900">{comment.username}</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-gray-500">{formatTimeAgo(comment.created_at)}</span>
+                  {/* Edit button for comment owner */}
+                  {user && comment.user_id === parseInt(user.id.toString()) && (
+                    <button
+                      onClick={() => handleEditComment(comment.comment_id, comment.comment_text)}
+                      className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1"
+                    >
+                      <Edit3 className="w-3 h-3" />
+                      Edit
+                    </button>
+                  )}
+                </div>
+              </div>
+              {editingCommentId === comment.comment_id ? (
+                <div className="space-y-2">
+                  <textarea
+                    value={editText}
+                    onChange={(e) => setEditText(e.target.value)}
+                    className="w-full p-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+                    rows={3}
+                  />
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleSaveEdit(comment.comment_id)}
+                      className="flex items-center gap-1 px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
+                    >
+                      <Save className="w-3 h-3" />
+                      Save
+                    </button>
+                    <button
+                      onClick={handleCancelEdit}
+                      className="flex items-center gap-1 px-2 py-1 text-xs bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+                    >
+                      <X className="w-3 h-3" />
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-gray-800 text-sm">{comment.comment_text}</p>
+              )}
+            </div>
 
           {/* Reply button and actions */}
           <div className="flex items-center justify-between mt-2">
             <div className="flex items-center space-x-3">
-              <button
-                onClick={() => setReplyTo(replyTo === comment.comment_id ? null : comment.comment_id)}
-                className="text-gray-500 hover:text-blue-600 text-xs font-medium flex items-center"
-              >
-                <Reply className="w-3 h-3 mr-1" />
-                Reply
-              </button>
+              {/* Only show reply button for non-admin users */}
+              {user && !user?.isAdmin && user?.role !== 'admin' && (
+                <button
+                  onClick={() => setReplyTo(replyTo === comment.comment_id ? null : comment.comment_id)}
+                  className="text-gray-500 hover:text-blue-600 text-xs font-medium flex items-center"
+                >
+                  <Reply className="w-3 h-3 mr-1" />
+                  Reply
+                </button>
+              )}
               {comment.replies && comment.replies.length > 0 && (
                 <span className="text-xs text-gray-500">
                   {comment.replies.length} {comment.replies.length === 1 ? 'reply' : 'replies'}
@@ -282,6 +416,7 @@ const CommentComponent: React.FC<CommentComponentProps> = ({
       </div>
     </div>
   );
+  }
 
   return (
     <div className={`${className}`}>
@@ -297,6 +432,7 @@ const CommentComponent: React.FC<CommentComponentProps> = ({
             : 'mb-4'
         }`}
         style={{ pointerEvents: 'auto' }}
+        data-comment-toggle="true"
       >
         <MessageCircle className="w-4 h-4 mr-1" />
         <span>{showComments ? comments.length : commentCount} comment{(showComments ? comments.length : commentCount) !== 1 ? 's' : ''}</span>
@@ -305,8 +441,8 @@ const CommentComponent: React.FC<CommentComponentProps> = ({
       {/* Comments section */}
       {showComments && (
         <div className={`space-y-4 ${className?.includes('inline-flex') ? 'absolute top-8 right-0 bg-white border border-gray-200 rounded-lg shadow-lg p-4 w-96 z-20' : ''}`}>
-          {/* Add comment form */}
-          {user && (
+          {/* Add comment form - only for non-admin users */}
+          {user && !user?.isAdmin && user?.role !== 'admin' && (
             <form onSubmit={handleSubmitComment} className="mb-6">
               <div className="flex space-x-3">
                 <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-teal-500 rounded-full flex items-center justify-center flex-shrink-0">

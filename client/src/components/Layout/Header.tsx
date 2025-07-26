@@ -18,8 +18,12 @@ const Header: React.FC = () => {
     { path: '/', label: 'Home' },
     { path: '/entities', label: 'Discover' },
     { path: '/categories', label: 'Categories' },
-    { path: '/feed', label: 'Feed' },
-    { path: '/create-post', label: 'Create' },
+    // Only show Feed and Create Post for non-admin users
+    ...(!user?.isAdmin && user?.role !== 'admin' ? [
+      { path: '/feed', label: 'Feed' },
+      { path: '/create-post', label: 'Create' },
+    ] : []),
+    // Show admin-specific navigation items for admin users
     ...((user?.isAdmin || user?.role === 'admin') ? [
       { path: '/admin', label: 'Admin Dashboard' },
       { path: '/admin/reports', label: 'Admin Reports' }
@@ -96,43 +100,76 @@ const Header: React.FC = () => {
                   )}
                 </Link>
 
-                {/* Profile Dropdown */}
-                <div className="relative group">
-                  <Link
-                    to="/profile"
-                    className="flex items-center space-x-2 p-2 text-gray-700 hover:text-blue-600 transition-colors"
-                  >
-                    <User className="w-5 h-5" />
-                    <span className="hidden sm:inline text-sm font-medium">
-                      {user.displayName}
-                    </span>
-                  </Link>
-                  
-                  {/* Dropdown Menu */}
-                  <div className="absolute right-0 mt-1 w-48 bg-white rounded-md shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all">
-                    <div className="py-1">
-                      <Link
-                        to="/profile"
-                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                      >
-                        Profile
-                      </Link>
-                      <Link
-                        to="/notifications"
-                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                      >
-                        Notifications
-                      </Link>
-                      <button
-                        onClick={logout}
-                        className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                      >
-                        <LogOut className="w-4 h-4 inline mr-2" />
-                        Logout
-                      </button>
+                {/* Profile Dropdown - Hidden for Admin Users */}
+                {!user.isAdmin && user.role !== 'admin' && (
+                  <div className="relative group">
+                    <Link
+                      to="/profile"
+                      className="flex items-center space-x-2 p-2 text-gray-700 hover:text-blue-600 transition-colors"
+                    >
+                      <User className="w-5 h-5" />
+                      <span className="hidden sm:inline text-sm font-medium">
+                        {user.displayName}
+                      </span>
+                    </Link>
+                    
+                    {/* Dropdown Menu */}
+                    <div className="absolute right-0 mt-1 w-48 bg-white rounded-md shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all">
+                      <div className="py-1">
+                        <Link
+                          to="/profile"
+                          className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                        >
+                          Profile
+                        </Link>
+                        <Link
+                          to="/notifications"
+                          className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                        >
+                          Notifications
+                        </Link>
+                        <button
+                          onClick={logout}
+                          className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                        >
+                          <LogOut className="w-4 h-4 inline mr-2" />
+                          Logout
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
+
+                {/* Admin User Display - Only Username and Logout */}
+                {(user.isAdmin || user.role === 'admin') && (
+                  <div className="relative group">
+                    <div className="flex items-center space-x-2 p-2 text-gray-700">
+                      <User className="w-5 h-5" />
+                      <span className="hidden sm:inline text-sm font-medium">
+                        {user.displayName} (Admin)
+                      </span>
+                    </div>
+                    
+                    {/* Admin Dropdown Menu */}
+                    <div className="absolute right-0 mt-1 w-48 bg-white rounded-md shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all">
+                      <div className="py-1">
+                        <Link
+                          to="/notifications"
+                          className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                        >
+                          Notifications
+                        </Link>
+                        <button
+                          onClick={logout}
+                          className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                        >
+                          <LogOut className="w-4 h-4 inline mr-2" />
+                          Logout
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </>
             ) : (
               <div className="flex items-center space-x-2">

@@ -310,7 +310,7 @@ const EntityDetail: React.FC = () => {
 
               {/* Action Buttons */}
               <div className="flex gap-4">
-                {user && (
+                {user && !user?.isAdmin && user?.role !== 'admin' && (
                   <button
                     onClick={() => setShowCreateReview(true)}
                     className="flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-teal-600 text-white rounded-lg font-medium hover:from-blue-700 hover:to-teal-700 transition-all transform hover:scale-105"
@@ -464,7 +464,7 @@ const EntityDetail: React.FC = () => {
                 <Star className="w-16 h-16 text-gray-400 mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 mb-2">No reviews yet</h3>
                 <p className="text-gray-600 mb-6">Be the first to review this entity!</p>
-                {user && (
+                {user && !user?.isAdmin && user?.role !== 'admin' && (
                   <button
                     onClick={() => setShowCreateReview(true)}
                     className="px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"

@@ -1,4 +1,3 @@
-import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { AppProvider } from './context/AppContext';
@@ -12,6 +11,9 @@ import CreateEntity from './components/Entities/CreateEntity';
 import CategoryList from './components/Categories/CategoryList';
 import CategoryDetail from './components/Categories/CategoryDetail';
 import CreatePost from './components/Posts/CreatePost';
+import PostDetail from './components/Posts/PostDetail';
+import ReviewDetail from './components/Reviews/ReviewDetail';
+import RateMyWorkDetail from './components/RateMyWork/RateMyWorkDetail';
 import Feed from './components/Feed/Feed';
 import Profile from './components/Profile/Profile';
 import Notifications from './components/Notifications/Notifications';
@@ -19,6 +21,7 @@ import SearchResults from './components/Search/SearchResults';
 import AdminDashboard from './components/Admin/AdminDashboard';
 import AdminReports from './components/Admin/AdminReports';
 import EntityRequestsAdmin from './components/Admin/EntityRequestsAdmin';
+import AdminRouteGuard from './components/Auth/AdminRouteGuard';
 
 function App() {
   return (
@@ -35,12 +38,47 @@ function App() {
               <Route path="/entities/create" element={<CreateEntity />} />
               <Route path="/categories" element={<CategoryList />} />
               <Route path="/categories/:category" element={<CategoryDetail />} />
-              <Route path="/create-post" element={<CreatePost />} />
-              <Route path="/feed" element={<Feed />} />
-              <Route path="/profile" element={<Profile />} />
+              <Route path="/create-post" element={
+                <AdminRouteGuard>
+                  <CreatePost />
+                </AdminRouteGuard>
+              } />
+              <Route path="/feed" element={
+                <AdminRouteGuard>
+                  <Feed />
+                </AdminRouteGuard>
+              } />
+              <Route path="/posts/:id" element={
+                <AdminRouteGuard>
+                  <PostDetail />
+                </AdminRouteGuard>
+              } />
+              <Route path="/reviews/:id" element={
+                <AdminRouteGuard>
+                  <ReviewDetail />
+                </AdminRouteGuard>
+              } />
+              <Route path="/rate-my-work/:id" element={
+                <AdminRouteGuard>
+                  <RateMyWorkDetail />
+                </AdminRouteGuard>
+              } />
+              <Route path="/profile" element={
+                <AdminRouteGuard>
+                  <Profile />
+                </AdminRouteGuard>
+              } />
+              <Route path="/profile/:id" element={
+                <AdminRouteGuard>
+                  <Profile />
+                </AdminRouteGuard>
+              } />
               <Route path="/profile/:id" element={<Profile />} />
-              <Route path="/profile/:id" element={<Profile />} />
-              <Route path="/notifications" element={<Notifications />} />
+              <Route path="/notifications" element={
+                <AdminRouteGuard>
+                  <Notifications />
+                </AdminRouteGuard>
+              } />
               <Route path="/search" element={<SearchResults />} />
               <Route path="/admin" element={<AdminDashboard />} />
               <Route path="/admin/reports" element={<AdminReports />} />
