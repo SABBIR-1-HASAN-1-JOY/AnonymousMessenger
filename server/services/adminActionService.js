@@ -172,6 +172,28 @@ class AdminActionService {
     }
   }
 
+  // Delete report
+  async deleteReport(reportId) {
+    try {
+      const client = await pool.connect();
+      
+      try {
+        const result = await client.query(`
+          DELETE FROM reports 
+          WHERE report_id = $1
+          RETURNING *
+        `, [reportId]);
+        
+        return result.rows[0];
+      } finally {
+        client.release();
+      }
+    } catch (error) {
+      console.error('Error deleting report:', error);
+      throw error;
+    }
+  }
+
   // Handle admin action on a report
   async handleReportAction(reportId, adminId, actionType, actionDetails = {}) {
     const client = await pool.connect();

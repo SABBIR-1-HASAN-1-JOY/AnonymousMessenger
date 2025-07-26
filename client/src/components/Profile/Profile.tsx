@@ -533,22 +533,6 @@ const Profile: React.FC = () => {
             </button>
           </div>
         )}
-  
-        {/* Server Connection Status */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-sm font-medium text-blue-900">Server Connection</h3>
-              <p className="text-xs text-blue-700">
-                {userProfile 
-                  ? '✓ Connected to server database' 
-                  : '⚠ Using local data (server unavailable)'
-                }
-              </p>
-            </div>
-            {loading && <Loader className="w-4 h-4 text-blue-600 animate-spin" />}
-          </div>
-        </div>
 
         {/* Profile Header */}
         <div className="bg-white rounded-xl shadow-md overflow-hidden mb-8">

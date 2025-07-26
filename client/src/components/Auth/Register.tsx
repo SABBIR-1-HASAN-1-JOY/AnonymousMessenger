@@ -75,18 +75,14 @@ const Register: React.FC = () => {
           </p>
         </div>
 
-        {/* Demo Account Info */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <h3 className="text-sm font-medium text-blue-900 mb-2">Connect to Server</h3>
-          <p className="text-xs text-blue-700">
-            Registration now connects to the server database. Make sure the server is running on port 5000.
+        {/* Cool Quote */}
+        <div className="text-center py-6">
+          <p className="text-2xl font-bold bg-gradient-to-r from-purple-600 via-pink-600 to-red-600 bg-clip-text text-transparent animate-pulse">
+            Peace was never an option!
           </p>
-          <Link
-            to="/login"
-            className="text-xs text-blue-800 font-medium hover:text-blue-900 underline"
-          >
-            Already have an account? Login here
-          </Link>
+          <div className="mt-2 flex justify-center">
+            <div className="w-24 h-1 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full"></div>
+          </div>
         </div>
 
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>

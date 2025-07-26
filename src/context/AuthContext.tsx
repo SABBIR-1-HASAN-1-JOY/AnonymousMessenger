@@ -130,7 +130,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           email,
           password,
           created_at: new Date().toISOString(),
-          isAdmin: false,
+          isadmin: false,
           bio: '',
           profile_picture: null,
           location: null
@@ -152,7 +152,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         profilePicture: userData.profile_picture || undefined,
         followers: [],
         following: [],
-        createdAt: userData.created_at
+        createdAt: userData.created_at,
+        isAdmin: userData.isadmin || false,
+        role: userData.isadmin ? 'admin' : 'user'
       };
 
       setUser(newUser);

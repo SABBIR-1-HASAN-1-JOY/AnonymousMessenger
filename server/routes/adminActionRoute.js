@@ -17,6 +17,9 @@ router.get('/reports/status/:status', adminActionControllers.getReportsByStatus)
 // PUT /api/admin/reports/:reportId/status - Update report status
 router.put('/reports/:reportId/status', adminActionControllers.updateReportStatus);
 
+// DELETE /api/admin/reports/:reportId - Delete report
+router.delete('/reports/:reportId', adminActionControllers.deleteReport);
+
 // POST /api/admin/reports/:reportId/action - Handle admin action on report
 router.post('/reports/:reportId/action', adminActionControllers.handleReportAction);
 

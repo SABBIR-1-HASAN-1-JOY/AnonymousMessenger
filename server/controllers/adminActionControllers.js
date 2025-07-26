@@ -90,6 +90,25 @@ const updateReportStatus = async (req, res) => {
   }
 };
 
+// Delete report
+const deleteReport = async (req, res) => {
+  try {
+    const { reportId } = req.params;
+    
+    const result = await adminActionService.deleteReport(parseInt(reportId));
+    res.status(200).json({
+      success: true,
+      data: result
+    });
+  } catch (error) {
+    console.error('Delete report error:', error);
+    res.status(500).json({
+      error: 'Failed to delete report',
+      details: error.message
+    });
+  }
+};
+
 // Handle admin action on a report
 const handleReportAction = async (req, res) => {
   try {
@@ -273,6 +292,7 @@ module.exports = {
   getReportsStats,
   getReportsByStatus,
   updateReportStatus,
+  deleteReport,
   handleReportAction,
   getReportActions,
   getUserWarnings,

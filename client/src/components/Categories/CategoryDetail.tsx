@@ -40,14 +40,6 @@ const CategoryDetail: React.FC = () => {
           return a.item_name.localeCompare(b.item_name);
         case 'name-desc':
           return b.item_name.localeCompare(a.item_name);
-        case 'newest':
-          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-        case 'oldest':
-          return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
-        case 'followers-desc':
-          return (b?.followers?.length || 0) - (a?.followers?.length || 0);
-        case 'followers-asc':
-          return (a?.followers?.length || 0) - (b?.followers?.length || 0);
         default:
           return 0;
       }
@@ -134,10 +126,6 @@ const CategoryDetail: React.FC = () => {
                 <option value="reviews-asc">💬 Least Reviews</option>
                 <option value="name-asc">🔤 A to Z</option>
                 <option value="name-desc">🔤 Z to A</option>
-                <option value="newest">🆕 Newest First</option>
-                <option value="oldest">📅 Oldest First</option>
-                <option value="followers-desc">👥 Most Followers</option>
-                <option value="followers-asc">👤 Least Followers</option>
               </select>
             </div>
           </div>
@@ -160,11 +148,7 @@ const CategoryDetail: React.FC = () => {
               sortBy === 'reviews-desc' ? 'most reviews' :
               sortBy === 'reviews-asc' ? 'least reviews' :
               sortBy === 'name-asc' ? 'A to Z' :
-              sortBy === 'name-desc' ? 'Z to A' :
-              sortBy === 'newest' ? 'newest first' :
-              sortBy === 'oldest' ? 'oldest first' :
-              sortBy === 'followers-desc' ? 'most followers' :
-              sortBy === 'followers-asc' ? 'least followers' : 'default'
+              sortBy === 'name-desc' ? 'Z to A' : 'default'
             }
           </p>
         </div>
@@ -204,7 +188,6 @@ const CategoryDetail: React.FC = () => {
                 </p>
                 <div className="flex items-center justify-between text-sm text-gray-500">
                   <span>{(entity.reviewCount || entity.reviewcount) || 0} reviews</span>
-                  <span>{entity?.followers?.length || 0} followers</span>
                 </div>
               </div>
             </Link>

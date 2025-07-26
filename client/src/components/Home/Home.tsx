@@ -82,28 +82,6 @@ const Home: React.FC = () => {
                 </>
               )}
             </div>
-            
-            {/* Demo User Info */}
-            {!user && (
-              <div className="mt-8 p-6 bg-white bg-opacity-10 rounded-xl backdrop-blur-sm">
-                <h3 className="text-lg font-semibold mb-4">Try Demo Accounts:</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                  <div className="bg-white bg-opacity-20 rounded-lg p-3">
-                    <p className="font-medium">john@demo.com</p>
-                    <p className="text-blue-100">Tech enthusiast</p>
-                  </div>
-                  <div className="bg-white bg-opacity-20 rounded-lg p-3">
-                    <p className="font-medium">sarah@demo.com</p>
-                    <p className="text-blue-100">Travel blogger</p>
-                  </div>
-                  <div className="bg-white bg-opacity-20 rounded-lg p-3">
-                    <p className="font-medium">mike@demo.com</p>
-                    <p className="text-blue-100">Software developer</p>
-                  </div>
-                </div>
-                <p className="text-sm text-blue-100 mt-3">Password: demo (for all accounts)</p>
-              </div>
-            )}
           </div>
         </div>
       </section>
@@ -111,7 +89,7 @@ const Home: React.FC = () => {
       {/* Stats Section */}
       <section className="py-16 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div className="text-center">
               <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <TrendingUp className="w-8 h-8 text-blue-600" />
@@ -132,13 +110,6 @@ const Home: React.FC = () => {
               </div>
               <div className="text-3xl font-bold text-gray-900">{posts.length}</div>
               <div className="text-gray-600">Posts</div>
-            </div>
-            <div className="text-center">
-              <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Users className="w-8 h-8 text-purple-600" />
-              </div>
-              <div className="text-3xl font-bold text-gray-900">3</div>
-              <div className="text-gray-600">Demo Users</div>
             </div>
           </div>
         </div>
@@ -220,7 +191,6 @@ const Home: React.FC = () => {
                     </div>
                     {post.type === 'rate-my-work' ? (
                       <div>
-                        <h4 className="font-medium text-gray-900">{post.title}</h4>
                         <p className="text-sm text-gray-600 mt-1">{post.description}</p>
                       </div>
                     ) : (

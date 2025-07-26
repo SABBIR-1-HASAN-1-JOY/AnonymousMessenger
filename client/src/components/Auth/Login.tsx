@@ -47,27 +47,14 @@ const Login: React.FC = () => {
           </p>
         </div>
 
-        {/* Server Connection Info */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <h3 className="text-sm font-medium text-blue-900 mb-3">Server Connection</h3>
-          <div className="space-y-2">
-            <div className="text-sm text-blue-800">
-              <p className="font-medium">✓ Connected to server database</p>
-              <p className="text-xs text-blue-600 mt-1">
-                Login with your registered account credentials
-              </p>
-            </div>
-            <div className="text-xs text-blue-700">
-              <p>Server: localhost:3000</p>
-              <p>Database: Connected</p>
-            </div>
+        {/* Cool Quote */}
+        <div className="text-center py-6">
+          <p className="text-2xl font-bold bg-gradient-to-r from-purple-600 via-pink-600 to-red-600 bg-clip-text text-transparent animate-pulse">
+            Peace was never an option!
+          </p>
+          <div className="mt-2 flex justify-center">
+            <div className="w-24 h-1 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full"></div>
           </div>
-          <Link
-            to="/register"
-            className="inline-block mt-2 text-xs text-blue-800 font-medium hover:text-blue-900 underline"
-          >
-            Don't have an account? Register here
-          </Link>
         </div>
 
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>

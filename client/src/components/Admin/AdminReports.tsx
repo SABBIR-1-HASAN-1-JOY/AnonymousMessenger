@@ -107,11 +107,8 @@ const AdminReports: React.FC = () => {
     }
     
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/reports/${reportId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
+      const response = await fetch(`http://localhost:3000/api/admin/reports/${reportId}`, {
+        method: 'DELETE'
       });
       
       const data = await response.json();
