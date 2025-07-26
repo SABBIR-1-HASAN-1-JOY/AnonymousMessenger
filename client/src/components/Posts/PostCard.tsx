@@ -3,6 +3,7 @@ import { Calendar } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import VoteComponent from '../common/VoteComponent';
 import CommentComponent from '../common/CommentComponent';
+import ReportButton from '../Reports/ReportButton';
 import { SimplePost, RateMyWorkPost } from '../../types';
 
 interface PostCardProps {
@@ -89,11 +90,16 @@ const PostCard: React.FC<PostCardProps> = ({
           </div>
         )}
 
-        {/* Voting */}
-        <div className="flex items-center text-sm text-gray-500 mt-4">
+        {/* Voting and Report */}
+        <div className="flex items-center justify-between text-sm text-gray-500 mt-4">
           <VoteComponent
             entityType="post"
             entityId={parseInt(post.id.toString())}
+          />
+          <ReportButton
+            itemType="post"
+            itemId={parseInt(post.id.toString())}
+            reportedUserId={parseInt(post.userId.toString())}
           />
         </div>
 

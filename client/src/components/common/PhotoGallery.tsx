@@ -118,11 +118,7 @@ const PhotoGallery: React.FC<PhotoGalleryProps> = ({
   }
 
   if (photos.length === 0) {
-    return (
-      <div className={`text-center p-8 text-gray-500 ${className}`}>
-        <p>No photos uploaded yet.</p>
-      </div>
-    );
+    return null; // Don't render anything if no photos
   }
 
   return (

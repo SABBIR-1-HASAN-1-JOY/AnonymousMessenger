@@ -42,7 +42,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           followers: ['2', '3'],  // Updated to use numeric IDs
           following: ['2'],
           createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days ago
-          role: 'user'
+          isAdmin: false,
+          role: 'user' as const
         },
         {
           id: '3',  // Changed from 'admin1' to match backend
@@ -53,7 +54,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           followers: [],
           following: [],
           createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(), // 10 days ago
-          role: 'admin'
+          isAdmin: true,
+          role: 'admin' as const
         },
         {
           id: '2',  // Changed from 'demo2' to match backend
@@ -64,7 +66,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           followers: ['1', '3'],  // Updated to use numeric IDs
           following: ['1', '3'],
           createdAt: new Date(Date.now() - 45 * 24 * 60 * 60 * 1000).toISOString(), // 45 days ago
-          role: 'user'
+          isAdmin: false,
+          role: 'user' as const
         },
         {
           id: '4',  // Changed from 'demo3' to match backend (assuming user 4 exists)
@@ -75,7 +78,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           followers: ['1'],  // Updated to use numeric IDs
           following: ['1', '2'],
           createdAt: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString(), // 60 days ago
-          role: 'user'
+          isAdmin: false,
+          role: 'user' as const
         }
       ];
       localStorage.setItem('jachai_users', JSON.stringify(demoUsers));
@@ -130,7 +134,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         followers: [],
         following: [],
         createdAt: userData.created_at || new Date().toISOString(),
-        role: userData.isAdmin ? 'admin' : 'user'
+        isAdmin: userData.isAdmin || userData.isadmin || false,
+        role: (userData.isAdmin || userData.isadmin) ? 'admin' : 'user'
       };
 
       setUser(foundUser);

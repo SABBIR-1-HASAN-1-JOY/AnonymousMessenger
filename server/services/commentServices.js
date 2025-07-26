@@ -123,9 +123,7 @@ const deleteCommentById = async (commentId) => {
 // Service to get comment count
 const fetchCommentCount = async (entityType, entityId) => {
   try {
-    console.log('Fetching comment count for entity:', { entityType, entityId });
     const count = await getCommentCount(entityType, entityId);
-    console.log('Comment count result:', count);
     
     return {
       success: true,

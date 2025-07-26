@@ -104,7 +104,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         profilePicture: userData.profile_picture || undefined,
         followers: [],
         following: [],
-        createdAt: userData.created_at || new Date().toISOString()
+        createdAt: userData.created_at || new Date().toISOString(),
+        isAdmin: userData.isadmin || false,
+        role: userData.isadmin ? 'admin' : 'user'
       };
 
       setUser(foundUser);

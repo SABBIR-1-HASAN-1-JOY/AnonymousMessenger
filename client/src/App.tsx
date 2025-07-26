@@ -17,6 +17,8 @@ import Profile from './components/Profile/Profile';
 import Notifications from './components/Notifications/Notifications';
 import SearchResults from './components/Search/SearchResults';
 import AdminDashboard from './components/Admin/AdminDashboard';
+import AdminReports from './components/Admin/AdminReports';
+import EntityRequestsAdmin from './components/Admin/EntityRequestsAdmin';
 
 function App() {
   return (
@@ -41,6 +43,8 @@ function App() {
               <Route path="/notifications" element={<Notifications />} />
               <Route path="/search" element={<SearchResults />} />
               <Route path="/admin" element={<AdminDashboard />} />
+              <Route path="/admin/reports" element={<AdminReports />} />
+              <Route path="/admin/entity-requests" element={<EntityRequestsAdmin />} />
             </Route>
           </Routes>
         </AppProvider>

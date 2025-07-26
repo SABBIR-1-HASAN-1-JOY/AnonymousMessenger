@@ -244,9 +244,6 @@ const getCommentReplies = async (req, res) => {
 // Get comment statistics (total count, recent activity)
 const getCommentStats = async (req, res) => {
   try {
-    console.log('=== GET COMMENT STATS CONTROLLER ===');
-    console.log('Request params:', req.params);
-    
     const { entityType, entityId } = req.params;
 
     // Validate entity type
@@ -265,8 +262,6 @@ const getCommentStats = async (req, res) => {
         error: result.error || 'Failed to fetch comment statistics'
       });
     }
-
-    console.log('Comment stats:', result.stats);
 
     res.status(200).json({
       success: true,

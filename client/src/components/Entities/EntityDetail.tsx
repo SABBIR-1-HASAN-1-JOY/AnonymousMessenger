@@ -5,6 +5,8 @@ import { useAuth } from '../../context/AuthContext';
 import CreateReview from './CreateReview';
 import VoteComponent from '../common/VoteComponent';
 import PhotoGallery from '../common/PhotoGallery';
+import CommentComponent from '../common/CommentComponent';
+import ReportButton from '../Reports/ReportButton';
 
 interface EntityDetailData {
   id: string;
@@ -436,8 +438,22 @@ const EntityDetail: React.FC = () => {
                           <VoteComponent 
                             entityType="review" 
                             entityId={parseInt((review.review_id || review.id || index).toString())}
+                            className="flex items-center space-x-4"
                           />
-                          <span>{review.upvotes || 0} helpful</span>
+                          <div className="flex items-center space-x-4 relative">
+                            <CommentComponent
+                              entityType="review"
+                              entityId={parseInt((review.review_id || review.id || index).toString())}
+                              className="inline-flex"
+                            />
+                            <ReportButton
+                              itemType="review"
+                              itemId={parseInt((review.review_id || review.id || index).toString())}
+                              reportedUserId={parseInt((review.user_id || review.userId)?.toString() || '0')}
+                              className="inline-flex"
+                            />
+                            <span>{review.upvotes || 0} helpful</span>
+                          </div>
                         </div>
                       </div>
                     );

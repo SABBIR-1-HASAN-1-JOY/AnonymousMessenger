@@ -16,11 +16,15 @@ const photoRoutes = require('./routes/photoRoute.js') ;
 const commentRoutes = require('./routes/commentRoute.js') ;
 const notificationRoutes = require('./routes/notificationRoute.js') ;
 const entityRequestRoutes = require('./routes/entityRequestRoute.js') ;
+const reportRoutes = require('./routes/reportRoute.js') ;
+const adminActionRoutes = require('./routes/adminActionRoute.js') ;
 const databaseSetup = require('./setup/databaseSetup.js') ;
 const photoSetup = require('./setup/photoSetup.js') ;
 const commentSetup = require('./setup/commentSetup.js') ;
 const notificationSetup = require('./setup/notificationSetup.js') ;
 const entityRequestSetup = require('./setup/entityRequestSetup.js') ;
+const reportSetup = require('./setup/reportSetup.js') ;
+const adminSetup = require('./setup/adminSetup.js') ;
 // const entityDetailsRoute = require('./routes/entityDetails.js') ; // Assuming you have this route for entity details
 
 const app = express();
@@ -126,6 +130,12 @@ app.use('/api/notifications', notificationRoutes);
 
 // Entity Requests API (Admin)
 app.use('/api/entity-requests', entityRequestRoutes);
+
+// Reports API
+app.use('/api/reports', reportRoutes);
+
+// Admin Actions API 
+app.use('/api/admin', adminActionRoutes);
 
 // Database setup endpoint (for manual setup if needed)
 app.post('/api/setup/vote-table', async (req, res) => {
@@ -250,6 +260,46 @@ app.post('/api/setup/sample-notifications', async (req, res) => {
   }
 });
 
+// Report system setup endpoint
+app.post('/api/setup/reports', async (req, res) => {
+  try {
+    const result = await reportSetup.setupReportSystem();
+    if (!result.success) {
+      return res.status(500).json({ 
+        error: 'Failed to setup report system', 
+        details: result.error 
+      });
+    }
+    res.json({ message: result.message });
+  } catch (error) {
+    console.error('Error setting up report system:', error);
+    res.status(500).json({ 
+      error: 'Failed to setup report system', 
+      details: error.message 
+    });
+  }
+});
+
+// Add sample reports endpoint
+app.post('/api/setup/sample-reports', async (req, res) => {
+  try {
+    const result = await reportSetup.addSampleReports();
+    if (!result.success) {
+      return res.status(500).json({ 
+        error: 'Failed to add sample reports', 
+        details: result.error 
+      });
+    }
+    res.json({ message: result.message });
+  } catch (error) {
+    console.error('Error adding sample reports:', error);
+    res.status(500).json({ 
+      error: 'Failed to add sample reports', 
+      details: error.message 
+    });
+  }
+});
+
 // Verify comment system endpoint
 app.post('/api/setup/verify-comments', async (req, res) => {
   try {
@@ -265,6 +315,24 @@ app.post('/api/setup/verify-comments', async (req, res) => {
     console.error('Error verifying comment system:', error);
     res.status(500).json({ 
       error: 'Failed to verify comment system', 
+      details: error.message 
+    });
+  }
+});
+
+// Admin system setup endpoint
+app.post('/api/setup/admin-system', async (req, res) => {
+  console.log('=== ADMIN SYSTEM SETUP ENDPOINT HIT ===');
+  try {
+    const result = await adminSetup.setupAdminSystem();
+    res.json({ 
+      message: 'Admin system setup completed successfully',
+      data: result 
+    });
+  } catch (error) {
+    console.error('Error setting up admin system:', error);
+    res.status(500).json({ 
+      error: 'Failed to setup admin system', 
       details: error.message 
     });
   }
@@ -344,7 +412,7 @@ app.post('/api/login', async (req, res) => {
   try {
     console.log('Querying database for user...');
     const result = await pool.query(
-      'SELECT user_id, username, email, password, isAdmin from "user" WHERE email = $1',
+      'SELECT user_id, username, email, password, isadmin from "user" WHERE email = $1',
       [email]
     );
     
@@ -356,7 +424,7 @@ app.post('/api/login', async (req, res) => {
     }
     
     const user = result.rows[0];
-    console.log('user found:', { user_id: user.user_id, username: user.username, email: user.email });
+    console.log('user found:', { user_id: user.user_id, username: user.username, email: user.email, isadmin: user.isadmin });
     
     // In production, use bcrypt to compare hashed passwords
     if (user.password !== password) {
@@ -371,6 +439,85 @@ app.post('/api/login', async (req, res) => {
   } catch (err) {
     console.error('Login error:', err.message);
     console.error('Full login error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Make user admin endpoint
+app.post('/api/admin/make-admin/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { adminId } = req.body;
+
+    // Verify that the requester is an admin
+    const adminCheck = await pool.query(
+      'SELECT isAdmin FROM "user" WHERE user_id = $1',
+      [adminId]
+    );
+
+    if (adminCheck.rows.length === 0 || !adminCheck.rows[0].isadmin) {
+      return res.status(403).json({ error: 'Only admins can make other users admin' });
+    }
+
+    // Make the user admin
+    const result = await pool.query(
+      'UPDATE "user" SET isAdmin = true WHERE user_id = $1 RETURNING user_id, username, email, isAdmin',
+      [userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json({
+      success: true,
+      message: 'User is now an admin',
+      data: result.rows[0]
+    });
+  } catch (err) {
+    console.error('Make admin error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Remove admin privileges endpoint
+app.post('/api/admin/remove-admin/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { adminId } = req.body;
+
+    // Verify that the requester is an admin
+    const adminCheck = await pool.query(
+      'SELECT isAdmin FROM "user" WHERE user_id = $1',
+      [adminId]
+    );
+
+    if (adminCheck.rows.length === 0 || !adminCheck.rows[0].isadmin) {
+      return res.status(403).json({ error: 'Only admins can remove admin privileges' });
+    }
+
+    // Don't allow removing own admin privileges
+    if (parseInt(userId) === parseInt(adminId)) {
+      return res.status(400).json({ error: 'Cannot remove your own admin privileges' });
+    }
+
+    // Remove admin privileges
+    const result = await pool.query(
+      'UPDATE "user" SET isAdmin = false WHERE user_id = $1 RETURNING user_id, username, email, isAdmin',
+      [userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json({
+      success: true,
+      message: 'Admin privileges removed',
+      data: result.rows[0]
+    });
+  } catch (err) {
+    console.error('Remove admin error:', err);
     res.status(500).json({ error: err.message });
   }
 });

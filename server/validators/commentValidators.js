@@ -3,8 +3,8 @@ const Joi = require('joi');
 
 // Validate comment creation
 const validateCreateComment = (req, res, next) => {
-  console.log('=== VALIDATING CREATE COMMENT REQUEST ===');
-  console.log('Request body:', req.body);
+  // console.log('=== VALIDATING CREATE COMMENT REQUEST ===');
+  // console.log('Request body:', req.body);
   
   const schema = Joi.object({
     userId: Joi.alternatives().try(
@@ -61,14 +61,14 @@ const validateCreateComment = (req, res, next) => {
     parentCommentId: value.parentCommentId ? parseInt(value.parentCommentId) : null
   };
 
-  console.log('Comment creation validation passed');
+  // console.log('Comment creation validation passed');
   next();
 };
 
 // Validate comment ID parameter
 const validateCommentIdParam = (req, res, next) => {
-  console.log('=== VALIDATING COMMENT ID PARAMETER ===');
-  console.log('Comment ID:', req.params.commentId);
+  // console.log('=== VALIDATING COMMENT ID PARAMETER ===');
+  // console.log('Comment ID:', req.params.commentId);
   
   const schema = Joi.object({
     commentId: Joi.string().pattern(/^\d+$/).required().messages({
@@ -93,8 +93,8 @@ const validateCommentIdParam = (req, res, next) => {
 
 // Validate get comments parameters
 const validateGetComments = (req, res, next) => {
-  console.log('=== VALIDATING GET COMMENTS REQUEST ===');
-  console.log('Request params:', req.params);
+  // console.log('=== VALIDATING GET COMMENTS REQUEST ===');
+  // console.log('Request params:', req.params);
   
   const schema = Joi.object({
     entityType: Joi.string().valid('post', 'review', 'comment').required().messages({
@@ -117,14 +117,14 @@ const validateGetComments = (req, res, next) => {
     });
   }
 
-  console.log('Get comments validation passed');
+  // console.log('Get comments validation passed');
   next();
 };
 
 // Validate update comment
 const validateUpdateComment = (req, res, next) => {
-  console.log('=== VALIDATING UPDATE COMMENT REQUEST ===');
-  console.log('Request body:', req.body);
+  // console.log('=== VALIDATING UPDATE COMMENT REQUEST ===');
+  // console.log('Request body:', req.body);
   
   const schema = Joi.object({
     commentText: Joi.string().min(1).max(1000).required().messages({
@@ -145,7 +145,7 @@ const validateUpdateComment = (req, res, next) => {
     });
   }
 
-  console.log('Update comment validation passed');
+  // console.log('Update comment validation passed');
   next();
 };
 

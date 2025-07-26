@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { MessageCircle, Send, Reply } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import ReportButton from '../Reports/ReportButton';
 
 interface Comment {
   comment_id: number;
@@ -40,7 +41,7 @@ const CommentComponent: React.FC<CommentComponentProps> = ({
     // Initial load of comment count
     fetchCommentCount();
     
-    // Set up polling for real-time updates (every 5 seconds)
+    // Poll for comment count every 5 seconds to keep data fresh
     const interval = setInterval(() => {
       if (!showComments) {
         // Only poll for count when comments are closed to reduce API calls
@@ -229,20 +230,28 @@ const CommentComponent: React.FC<CommentComponentProps> = ({
             <p className="text-gray-800 text-sm">{comment.comment_text}</p>
           </div>
 
-          {/* Reply button */}
-          <div className="flex items-center mt-2 space-x-3">
-            <button
-              onClick={() => setReplyTo(replyTo === comment.comment_id ? null : comment.comment_id)}
-              className="text-gray-500 hover:text-blue-600 text-xs font-medium flex items-center"
-            >
-              <Reply className="w-3 h-3 mr-1" />
-              Reply
-            </button>
-            {comment.replies && comment.replies.length > 0 && (
-              <span className="text-xs text-gray-500">
-                {comment.replies.length} {comment.replies.length === 1 ? 'reply' : 'replies'}
-              </span>
-            )}
+          {/* Reply button and actions */}
+          <div className="flex items-center justify-between mt-2">
+            <div className="flex items-center space-x-3">
+              <button
+                onClick={() => setReplyTo(replyTo === comment.comment_id ? null : comment.comment_id)}
+                className="text-gray-500 hover:text-blue-600 text-xs font-medium flex items-center"
+              >
+                <Reply className="w-3 h-3 mr-1" />
+                Reply
+              </button>
+              {comment.replies && comment.replies.length > 0 && (
+                <span className="text-xs text-gray-500">
+                  {comment.replies.length} {comment.replies.length === 1 ? 'reply' : 'replies'}
+                </span>
+              )}
+            </div>
+            <ReportButton
+              itemType="comment"
+              itemId={comment.comment_id}
+              reportedUserId={comment.user_id}
+              className="!p-1"
+            />
           </div>
 
           {/* Reply form */}

@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useApp } from '../../context/AppContext';
 import VoteComponent from '../common/VoteComponent';
 import CommentComponent from '../common/CommentComponent';
+import ReportButton from '../Reports/ReportButton';
 
 interface Review {
   id: number;
@@ -102,11 +103,16 @@ const ReviewCard: React.FC<ReviewCardProps> = ({
         <h4 className="text-lg font-semibold text-gray-900 mb-2">{review.title}</h4>
         <p className="text-gray-700 mb-4">{review.body}</p>
         
-        {/* Review voting component */}
-        <div className="mb-4">
+        {/* Review voting and report component */}
+        <div className="mb-4 flex items-center justify-between">
           <VoteComponent 
             entityType="review" 
             entityId={review.id}
+          />
+          <ReportButton
+            itemType="review"
+            itemId={review.id}
+            reportedUserId={review.userId}
           />
         </div>
         

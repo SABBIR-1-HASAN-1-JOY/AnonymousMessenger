@@ -7,6 +7,7 @@ export interface User {
   followers: string[];
   following: string[];
   createdAt: string;
+  isAdmin?: boolean;
 }
 
 export interface Entity {

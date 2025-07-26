@@ -20,7 +20,10 @@ const Header: React.FC = () => {
     { path: '/categories', label: 'Categories' },
     { path: '/feed', label: 'Feed' },
     { path: '/create-post', label: 'Create' },
-    ...(user?.role === 'admin' ? [{ path: '/admin', label: 'Admin Panel' }] : []),
+    ...((user?.isAdmin || user?.role === 'admin') ? [
+      { path: '/admin', label: 'Admin Dashboard' },
+      { path: '/admin/reports', label: 'Admin Reports' }
+    ] : []),
   ];
 
   const handleSearch = (e: React.FormEvent) => {

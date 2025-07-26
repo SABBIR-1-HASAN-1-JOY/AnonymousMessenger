@@ -7,6 +7,7 @@ import VoteComponent from '../common/VoteComponent';
 import RatingComponent from '../common/RatingComponent';
 import PhotoGallery from '../common/PhotoGallery';
 import CommentComponent from '../common/CommentComponent';
+import ReportButton from '../Reports/ReportButton';
 
 const Feed: React.FC = () => {
   const { posts, reviews, entities, setPosts } = useApp();
@@ -404,6 +405,12 @@ const Feed: React.FC = () => {
                               entityId={parseInt(item.id.toString())}
                               className="inline-flex"
                             />
+                            <ReportButton
+                              itemType="post"
+                              itemId={parseInt(item.id.toString())}
+                              reportedUserId={parseInt((item.userId || item.user_id)?.toString() || '0')}
+                              className="inline-flex"
+                            />
                           </div>
                         </div>
                       </div>
@@ -429,6 +436,12 @@ const Feed: React.FC = () => {
                               entityId={parseInt(item.id.toString())}
                               className="inline-flex"
                             />
+                            <ReportButton
+                              itemType="post"
+                              itemId={parseInt(item.id.toString())}
+                              reportedUserId={parseInt((item.userId || item.user_id)?.toString() || '0')}
+                              className="inline-flex"
+                            />
                           </div>
                         </div>
                       </div>
@@ -439,15 +452,13 @@ const Feed: React.FC = () => {
                     <h4 className="text-lg font-semibold text-gray-900 mb-2">{item.title || item.review_title || 'Review'}</h4>
                     <p className="text-gray-700 mb-4">{item.body || item.review_text || item.content}</p>
                     
-                    {/* Review Photos */}
-                    <div className="mb-4">
-                      <PhotoGallery
-                        type="reviews"
-                        sourceId={parseInt(item.id.toString())}
-                        canDelete={false}
-                        className="w-full"
-                      />
-                    </div>
+                    {/* Review Photos - only show if there are photos */}
+                    <PhotoGallery
+                      type="reviews"
+                      sourceId={parseInt(item.id.toString())}
+                      canDelete={false}
+                      className="mb-4"
+                    />
                     
                     {/* Review voting and comments component */}
                     <div className="mb-4 flex items-center justify-between text-sm text-gray-500">
@@ -460,6 +471,12 @@ const Feed: React.FC = () => {
                         <CommentComponent
                           entityType="review"
                           entityId={parseInt(item.id.toString())}
+                          className="inline-flex"
+                        />
+                        <ReportButton
+                          itemType="review"
+                          itemId={parseInt(item.id.toString())}
+                          reportedUserId={parseInt(item.userId?.toString() || '0')}
                           className="inline-flex"
                         />
                       </div>
