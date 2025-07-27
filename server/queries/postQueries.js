@@ -29,6 +29,8 @@ const getAllPosts = async () => {
         p.post_text,
         p.is_rate_enabled,
         p.ratingpoint,
+        p.average_rating,
+        p.total_ratings,
         p.created_at,
         u.username as user_name
       FROM post p
@@ -53,6 +55,8 @@ const getPostsByUserId = async (userId) => {
         p.post_text,
         p.is_rate_enabled,
         p.ratingpoint,
+        p.average_rating,
+        p.total_ratings,
         p.created_at,
         u.username as user_name
       FROM post p

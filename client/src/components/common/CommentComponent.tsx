@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { MessageCircle, Send, Reply, Edit3, Save, X } from 'lucide-react';
+import { MessageCircle, Send, Reply, Edit3, Save, X, Trash2 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import ReportButton from '../Reports/ReportButton';
 
@@ -53,12 +53,13 @@ const CommentComponent: React.FC<CommentComponentProps> = ({
         // Only poll for count when comments are closed to reduce API calls
         fetchCommentCount();
       }
-    }, 5000);
+    }, 500000);
 
     return () => clearInterval(interval);
   }, [entityType, entityId]);
 
   useEffect(() => {
+    
     // Fetch full comments when showing, just count when hiding
     if (showComments) {
       fetchComments();
@@ -235,6 +236,61 @@ const CommentComponent: React.FC<CommentComponentProps> = ({
     }
   };
 
+  const handleDeleteComment = async (commentId: number, commentText: string) => {
+    if (!user) return;
+
+    // Confirm deletion
+    const confirmMessage = `Are you sure you want to delete this comment? This will also delete all replies to this comment.
+
+Comment: "${commentText.substring(0, 100)}${commentText.length > 100 ? '...' : ''}"`;
+    
+    const confirmDelete = window.confirm(confirmMessage);
+    
+    if (!confirmDelete) return;
+
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/comments/${commentId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'user-id': user.id.toString()
+        }
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log('Comment deleted:', result);
+        
+        // Remove the comment and its replies from local state
+        setComments(prev => {
+          const removeComment = (commentList: Comment[]): Comment[] => {
+            return commentList
+              .filter(comment => comment.comment_id !== commentId)
+              .map(comment => ({
+                ...comment,
+                replies: comment.replies ? removeComment(comment.replies) : []
+              }));
+          };
+          return removeComment(prev);
+        });
+
+        // Update comment count
+        fetchCommentCount();
+        
+        // Show success message
+        alert(`Comment deleted successfully. ${result.totalDeleted} total items deleted (comment + replies).`);
+      } else {
+        const errorData = await response.json();
+        console.error('Failed to delete comment:', errorData);
+        alert(errorData.error || 'Failed to delete comment');
+      }
+    } catch (error) {
+      console.error('Error deleting comment:', error);
+      alert('Error deleting comment');
+    }
+  };
+
   const handleSubmitReply = async (e: React.FormEvent, parentId: number) => {
     e.preventDefault();
     if (!user || !replyText.trim()) return;
@@ -327,6 +383,16 @@ const CommentComponent: React.FC<CommentComponentProps> = ({
                     >
                       <Edit3 className="w-3 h-3" />
                       Edit
+                    </button>
+                  )}
+                  {/* Delete button for comment owner */}
+                  {user && comment.user_id === parseInt(user.id.toString()) && (
+                    <button
+                      onClick={() => handleDeleteComment(comment.comment_id, comment.comment_text)}
+                      className="text-xs text-red-600 hover:text-red-700 flex items-center gap-1"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                      Delete
                     </button>
                   )}
                 </div>

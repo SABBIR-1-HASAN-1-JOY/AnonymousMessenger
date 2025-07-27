@@ -5,7 +5,8 @@ const {
   getAllReviews, 
   getReviewsByUser, 
   getReviewsByItem,
-  updateReview 
+  updateReview,
+  deleteReview
 } = require('../controllers/reviewControllers');
 const {
   validateCreateReview,
@@ -29,5 +30,8 @@ router.get('/item/:itemId', validateItemIdParam, getReviewsByItem);
 
 // Update a review
 router.put('/:reviewId', updateReview);
+
+// Delete a review
+router.delete('/:reviewId', deleteReview);
 
 module.exports = router;

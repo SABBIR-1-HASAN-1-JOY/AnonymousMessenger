@@ -53,7 +53,7 @@ function App() {
                   <PostDetail />
                 </AdminRouteGuard>
               } />
-              <Route path="/reviews/:id" element={
+              <Route path="/reviews/:reviewId" element={
                 <AdminRouteGuard>
                   <ReviewDetail />
                 </AdminRouteGuard>

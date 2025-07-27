@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { Calendar, ArrowLeft, Star, User, Edit3, Save, X } from 'lucide-react';
+import { Calendar, ArrowLeft, Star, User, Edit3, Save, X, Trash2 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useApp } from '../../context/AppContext';
+import VoteComponent from '../common/VoteComponent';
 import CommentComponent from '../common/CommentComponent';
 import ReportButton from '../Reports/ReportButton';
 
 const ReviewDetail: React.FC = () => {
-  const { id } = useParams();
+  const { reviewId } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
   const { reviews, entities } = useApp();
@@ -20,9 +21,9 @@ const ReviewDetail: React.FC = () => {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (id && reviews) {
+    if (reviewId && reviews) {
       const foundReview = reviews.find(r => 
-        r.id?.toString() === id
+        r.id?.toString() === reviewId
       );
       setReview(foundReview);
       if (foundReview) {
@@ -32,7 +33,7 @@ const ReviewDetail: React.FC = () => {
       }
       setLoading(false);
     }
-  }, [id, reviews]);
+  }, [reviewId, reviews]);
 
   const handleEditStart = () => {
     setIsEditing(true);
@@ -80,6 +81,43 @@ const ReviewDetail: React.FC = () => {
       alert('Error updating review');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!review || !user) return;
+
+    // Confirm deletion
+    if (!window.confirm('Are you sure you want to delete this review? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`http://localhost:3000/api/reviews/${review.id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'user-id': String(user.id)
+        },
+      });
+
+      if (!response.ok) {
+        let errorMessage = 'Failed to delete review';
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorData.message || errorMessage;
+        } catch (parseError) {
+          errorMessage = `Server error: ${response.status} ${response.statusText}`;
+        }
+        throw new Error(errorMessage);
+      }
+
+      // Navigate back to feed after successful deletion
+      navigate('/feed');
+      
+    } catch (err) {
+      console.error('Error deleting review:', err);
+      alert(err instanceof Error ? err.message : 'Failed to delete review');
     }
   };
 
@@ -190,13 +228,22 @@ const ReviewDetail: React.FC = () => {
               </div>
               <div className="flex items-center gap-2">
                 {review.userId === user?.id && (
-                  <button
-                    onClick={handleEditStart}
-                    className="flex items-center gap-1 px-3 py-1 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-md transition-colors"
-                  >
-                    <Edit3 className="w-4 h-4" />
-                    Edit
-                  </button>
+                  <>
+                    <button
+                      onClick={handleEditStart}
+                      className="flex items-center gap-1 px-3 py-1 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-md transition-colors"
+                    >
+                      <Edit3 className="w-4 h-4" />
+                      Edit
+                    </button>
+                    <button
+                      onClick={handleDelete}
+                      className="flex items-center gap-1 px-3 py-1 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      Delete
+                    </button>
+                  </>
                 )}
                 <ReportButton
                   itemType="review"
@@ -305,6 +352,14 @@ const ReviewDetail: React.FC = () => {
                   </Link>
                 </div>
               )}
+            </div>
+
+            {/* Vote Component */}
+            <div className="mt-6">
+              <VoteComponent
+                entityType="review"
+                entityId={parseInt(review.id.toString())}
+              />
             </div>
 
             {/* Comments Section */}

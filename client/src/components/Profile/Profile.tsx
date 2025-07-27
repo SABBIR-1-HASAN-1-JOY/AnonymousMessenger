@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
-import { Calendar, MapPin, Edit, Star, MessageSquare, Users, Heart, Loader, UserPlus, UserMinus } from 'lucide-react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { Calendar, MapPin, Edit, Star, MessageSquare, Users, Heart, Loader, UserPlus, UserMinus, Trash2 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useApp } from '../../context/AppContext';
 import VoteComponent from '../common/VoteComponent';
@@ -49,6 +49,7 @@ interface UserProfile {
 const Profile: React.FC = () => {
   const { user, updateProfile } = useAuth();
   const { id: paramId } = useParams<{ id?: string }>();
+  const navigate = useNavigate();
   const profileId = paramId || user?.id?.toString();
   const { entities } = useApp();
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
@@ -69,6 +70,33 @@ const Profile: React.FC = () => {
 
   // Check if this is the current user's own profile
   const isOwnProfile = !paramId || paramId === user?.id?.toString();
+
+  // Add click handlers for posts and reviews
+  const handlePostClick = (post: any, event: React.MouseEvent) => {
+    // Don't navigate if clicking on interactive elements
+    if ((event.target as HTMLElement).closest('button, a, .vote-component, .comment-component, .report-button')) {
+      return;
+    }
+    
+    const postId = post.post_id || post.id;
+    
+    // Check if it's a rate-my-work post
+    if (post.type === 'rate-my-work' || post.isRatedEnabled || post.is_rate_enabled) {
+      navigate(`/rate-my-work/${postId}`);
+    } else {
+      navigate(`/posts/${postId}`);
+    }
+  };
+
+  const handleReviewClick = (review: any, event: React.MouseEvent) => {
+    // Don't navigate if clicking on interactive elements
+    if ((event.target as HTMLElement).closest('button, a, .vote-component, .comment-component, .report-button')) {
+      return;
+    }
+    
+    const reviewId = review.review_id || review.id;
+    navigate(`/reviews/${reviewId}`);
+  };
 
   // Fetch user profile from server
   useEffect(() => {
@@ -459,6 +487,146 @@ const Profile: React.FC = () => {
     }
   };
 
+  // Handle deleting a post
+  const handleDeletePost = async (postId: number) => {
+    if (!user?.id) {
+      setError('You must be logged in to delete posts');
+      return;
+    }
+
+    // Confirm deletion
+    if (!window.confirm('Are you sure you want to delete this post? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      console.log('Deleting post:', { postId, userId: user.id, userIdType: typeof user.id });
+      
+      // Ensure user.id exists and is valid
+      if (!user.id) {
+        throw new Error('User ID is required for deletion');
+      }
+      
+      // Convert user.id to string for header (headers are always strings)
+      const userIdString = String(user.id);
+      console.log('Sending user ID as string:', userIdString);
+      
+      const response = await fetch(`http://localhost:3000/api/posts/${postId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'user-id': userIdString
+        },
+      });
+
+      if (!response.ok) {
+        let errorMessage = 'Failed to delete post';
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorData.message || errorMessage;
+        } catch (parseError) {
+          errorMessage = `Server error: ${response.status} ${response.statusText}`;
+        }
+        throw new Error(errorMessage);
+      }
+
+      const result = await response.json();
+      console.log('Post deleted successfully:', result);
+
+      // Remove the post from local state
+      if (userProfile) {
+        setUserProfile(prev => {
+          if (!prev) return prev;
+          
+          const updatedPosts = prev.posts?.filter(post => post.post_id !== postId) || [];
+
+          return {
+            ...prev,
+            posts: updatedPosts,
+            post_count: updatedPosts.length
+          };
+        });
+      }
+
+      // Show success message
+      setError('');
+      
+    } catch (err) {
+      console.error('Error deleting post:', err);
+      setError(err instanceof Error ? err.message : 'Failed to delete post');
+    }
+  };
+
+  // Handle deleting a review
+  const handleDeleteReview = async (reviewId: number) => {
+    if (!user?.id) {
+      setError('You must be logged in to delete reviews');
+      return;
+    }
+
+    // Confirm deletion
+    if (!window.confirm('Are you sure you want to delete this review? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      console.log('Deleting review:', { reviewId, userId: user.id, userIdType: typeof user.id });
+      
+      // Ensure user.id exists and is valid
+      if (!user.id) {
+        throw new Error('User ID is required for deletion');
+      }
+      
+      // Convert user.id to string for header (headers are always strings)
+      const userIdString = String(user.id);
+      console.log('Sending user ID as string:', userIdString);
+      
+      const response = await fetch(`http://localhost:3000/api/reviews/${reviewId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'user-id': userIdString
+        },
+      });
+
+      if (!response.ok) {
+        let errorMessage = 'Failed to delete review';
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorData.message || errorMessage;
+        } catch (parseError) {
+          errorMessage = `Server error: ${response.status} ${response.statusText}`;
+        }
+        throw new Error(errorMessage);
+      }
+
+      const result = await response.json();
+      console.log('Review deleted successfully:', result);
+
+      // Remove the review from local state
+      if (userProfile) {
+        setUserProfile(prev => {
+          if (!prev) return prev;
+          
+          const updatedReviews = prev.reviews?.filter(review => review.review_id !== reviewId) || [];
+
+          return {
+            ...prev,
+            reviews: updatedReviews,
+            review_count: updatedReviews.length
+          };
+        });
+      }
+
+      // Show success message
+      setError('');
+      
+    } catch (err) {
+      console.error('Error deleting review:', err);
+      setError(err instanceof Error ? err.message : 'Failed to delete review');
+    }
+  };
+
   // Loading state
   if (loading && !userProfile) {
     return (
@@ -784,7 +952,11 @@ const Profile: React.FC = () => {
                   userPosts
                     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
                     .map((post) => (
-                      <div key={post.post_id} className="border border-gray-200 rounded-lg p-4">
+                      <div 
+                        key={post.post_id} 
+                        className="border border-gray-200 rounded-lg p-4 transition-all duration-300 cursor-pointer hover:shadow-lg hover:border-blue-300"
+                        onClick={(e) => handlePostClick(post, e)}
+                      >
                         {post.post_title && (
                           <h3 className="font-semibold text-gray-900 mb-2">{post.post_title}</h3>
                         )}
@@ -824,14 +996,27 @@ const Profile: React.FC = () => {
                           <VoteComponent 
                             entityType="post" 
                             entityId={parseInt(post.post_id.toString())}
-                            className="flex items-center space-x-4"
+                            className="flex items-center space-x-4 vote-component"
                           />
                           <div className="flex items-center space-x-4 relative">
                             <CommentComponent
                               entityType="post"
                               entityId={parseInt(post.post_id.toString())}
-                              className="inline-flex"
+                              className="inline-flex comment-component"
                             />
+                            {/* Delete button - only show for own posts on own profile */}
+                            {isOwnProfile && post.user_id.toString() === user?.id?.toString() && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation(); // Prevent post click navigation
+                                  handleDeletePost(post.post_id);
+                                }}
+                                className="inline-flex items-center px-2 py-1 text-red-600 hover:text-red-700 hover:bg-red-50 rounded transition-colors"
+                                title="Delete post"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            )}
                           </div>
                         </div>
                         
@@ -867,7 +1052,11 @@ const Profile: React.FC = () => {
                         parseInt(e.item_id || '0') === review.item_id
                       );
                       return (
-                        <div key={review.review_id} className="border border-gray-200 rounded-lg p-4">
+                        <div 
+                          key={review.review_id} 
+                          className="border border-gray-200 rounded-lg p-4 transition-all duration-300 cursor-pointer hover:shadow-lg hover:border-blue-300"
+                          onClick={(e) => handleReviewClick(review, e)}
+                        >
                           <div className="flex items-center justify-between mb-2">
                             <h3 className="font-semibold text-gray-900">Review for {entity?.name || entity?.item_name || 'an entity'}</h3>
                             <div className="flex items-center">
@@ -881,14 +1070,27 @@ const Profile: React.FC = () => {
                             <VoteComponent 
                               entityType="review" 
                               entityId={parseInt(review.review_id.toString())}
-                              className="flex items-center space-x-4"
+                              className="flex items-center space-x-4 vote-component"
                             />
                             <div className="flex items-center space-x-4 relative">
                               <CommentComponent
                                 entityType="review"
                                 entityId={parseInt(review.review_id.toString())}
-                                className="inline-flex"
+                                className="inline-flex comment-component"
                               />
+                              {/* Delete button - only show for own reviews on own profile */}
+                              {isOwnProfile && review.user_id?.toString() === user?.id?.toString() && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation(); // Prevent review click navigation
+                                    handleDeleteReview(review.review_id);
+                                  }}
+                                  className="inline-flex items-center px-2 py-1 text-red-600 hover:text-red-700 hover:bg-red-50 rounded transition-colors"
+                                  title="Delete review"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              )}
                             </div>
                           </div>
                           

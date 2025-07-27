@@ -119,7 +119,7 @@ const CategoryList: React.FC = () => {
             <p className="text-gray-600">See what's popular across all categories</p>
           </div>
           
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="text-center">
               <div className="text-3xl font-bold text-blue-600 mb-2">{entities.length}</div>
               <div className="text-gray-600">Total Entities</div>
@@ -133,12 +133,6 @@ const CategoryList: React.FC = () => {
                 {Math.max(...categories.map(cat => getCategoryCount(cat)), 0)}
               </div>
               <div className="text-gray-600">Largest Category</div>
-            </div>
-            <div className="text-center">
-              <div className="text-3xl font-bold text-orange-600 mb-2">
-                {(entities.reduce((sum, entity) => sum + (entity.overallrating || entity.overallRating || 0), 0) / entities.length || 0).toFixed(1)}
-              </div>
-              <div className="text-gray-600">Avg Rating</div>
             </div>
           </div>
         </div>

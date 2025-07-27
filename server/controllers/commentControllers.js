@@ -183,27 +183,117 @@ const deleteComment = async (req, res) => {
     console.log('Comment ID:', req.params.commentId);
     
     const { commentId } = req.params;
-
-    const result = await commentServices.deleteComment(parseInt(commentId));
+    const userId = req.headers['user-id'] || req.body.userId;
     
-    if (!result.success) {
-      return res.status(404).json({
-        error: result.error || 'Failed to delete comment'
-      });
+    console.log('Delete comment request:', { 
+      commentId, 
+      commentIdType: typeof commentId,
+      userId, 
+      userIdType: typeof userId,
+      allHeaders: req.headers 
+    });
+
+    if (!commentId) {
+      console.log('❌ Missing commentId');
+      return res.status(400).json({ error: 'Comment ID is required' });
     }
 
-    console.log('Comment deleted successfully');
+    if (!userId) {
+      console.log('❌ Missing userId');
+      return res.status(400).json({ error: 'User ID is required' });
+    }
 
+    const pool = require('../config/db.js');
+    console.log('🔌 Database pool acquired');
+    
+    // Check if comment exists and user owns it
+    console.log('📝 Checking if comment exists...');
+    const commentCheck = await pool.query(
+      'SELECT comment_id, user_id, comment_text, parent_comment_id FROM comments WHERE comment_id = $1',
+      [commentId]
+    );
+    
+    console.log('Comment check result:', commentCheck.rows);
+    
+    if (commentCheck.rows.length === 0) {
+      console.log('❌ Comment not found');
+      return res.status(404).json({ error: 'Comment not found' });
+    }
+    
+    const comment = commentCheck.rows[0];
+    console.log('Found comment:', comment);
+    
+    // Check if user owns the comment (only comment owner can delete their own comments)
+    console.log('🔒 Checking ownership:', { 
+      commentUserId: comment.user_id, 
+      commentUserIdType: typeof comment.user_id,
+      requestUserId: userId,
+      requestUserIdType: typeof userId,
+      commentUserIdString: comment.user_id.toString(),
+      requestUserIdString: userId.toString(),
+      areEqual: comment.user_id.toString() === userId.toString()
+    });
+    
+    if (comment.user_id.toString() !== userId.toString()) {
+      console.log('❌ User does not own this comment');
+      return res.status(403).json({ error: 'You can only delete your own comments' });
+    }
+    
+    // Count replies before deletion
+    console.log('📊 Counting replies...');
+    const replyCount = await pool.query(
+      'SELECT COUNT(*) as count FROM comments WHERE parent_comment_id = $1',
+      [commentId]
+    );
+    
+    const repliesCount = parseInt(replyCount.rows[0].count);
+    console.log(`Found ${repliesCount} replies to delete along with the comment`);
+    
+    // Delete all replies first (cascading deletion)
+    console.log('🗑️  Deleting all replies...');
+    const deleteReplies = await pool.query(
+      'DELETE FROM comments WHERE parent_comment_id = $1 RETURNING comment_id, comment_text',
+      [commentId]
+    );
+    
+    console.log(`✅ Deleted ${deleteReplies.rows.length} replies:`, deleteReplies.rows);
+    
+    // Delete the main comment
+    console.log('🗑️  Deleting main comment...');
+    const deleteResult = await pool.query(
+      'DELETE FROM comments WHERE comment_id = $1 RETURNING comment_id, comment_text, parent_comment_id',
+      [commentId]
+    );
+    
+    console.log('Delete result:', deleteResult.rows);
+    
+    if (deleteResult.rows.length === 0) {
+      console.log('❌ Failed to delete comment');
+      return res.status(500).json({ error: 'Failed to delete comment' });
+    }
+    
+    const deletedComment = deleteResult.rows[0];
+    console.log('✅ Comment deleted successfully:', deletedComment);
+    
     res.status(200).json({
       success: true,
-      message: 'Comment deleted successfully'
+      message: 'Comment and all replies deleted successfully',
+      deletedComment: {
+        comment_id: deletedComment.comment_id,
+        comment_text: deletedComment.comment_text,
+        parent_comment_id: deletedComment.parent_comment_id
+      },
+      deletedReplies: deleteReplies.rows,
+      totalDeleted: 1 + deleteReplies.rows.length
     });
 
   } catch (error) {
-    console.error('Error in deleteComment controller:', error);
+    console.error('❌ Error deleting comment:', error);
+    console.error('❌ Error stack:', error.stack);
     res.status(500).json({
       error: 'Internal server error',
-      message: 'Failed to delete comment'
+      message: 'Failed to delete comment',
+      details: error.message
     });
   }
 };

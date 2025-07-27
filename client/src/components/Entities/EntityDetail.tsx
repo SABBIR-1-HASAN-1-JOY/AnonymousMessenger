@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Star, Calendar, Plus, ArrowLeft, Loader } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import CreateReview from './CreateReview';
@@ -30,12 +30,24 @@ interface EntityDetailData {
 const EntityDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [showCreateReview, setShowCreateReview] = useState(false);
   const [activeTab, setActiveTab] = useState<'reviews' | 'photos' | 'info'>('reviews');
   const [entity, setEntity] = useState<EntityDetailData | null>(null);
   const [entityReviews, setEntityReviews] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Add click handler for reviews
+  const handleReviewClick = (review: any, event: React.MouseEvent) => {
+    // Don't navigate if clicking on interactive elements
+    if ((event.target as HTMLElement).closest('button, a, .vote-component, .comment-component, .report-button')) {
+      return;
+    }
+    
+    const reviewId = review.review_id || review.id;
+    navigate(`/reviews/${reviewId}`);
+  };
 
   // Fetch entity details from server
   useEffect(() => {
@@ -385,14 +397,22 @@ const EntityDetail: React.FC = () => {
                       content: review.content,
                       text: review.text
                     });
+                    const reviewId = review.review_id || review.id || index;
+                    
                     return (
-                      <div key={review.review_id || review.id || index} className="bg-white rounded-xl shadow-md p-6">
+                      <div 
+                        key={reviewId} 
+                        id={`review-${reviewId}`}
+                        className="bg-white rounded-xl shadow-md p-6 transition-all duration-300 cursor-pointer hover:shadow-lg"
+                        onClick={(e) => handleReviewClick(review, e)}
+                      >
                         <div className="flex items-start justify-between mb-4">
                           <div className="flex items-center">
                             <Link 
                               to={`/profile/${(review.user_id || review.userId)?.toString()}`}
                               className="w-12 h-12 bg-gradient-to-r from-blue-500 to-teal-500 rounded-full flex items-center justify-center hover:shadow-lg transition-shadow cursor-pointer"
                               title={`View ${review.userName || review.username || 'user'}'s profile`}
+                              onClick={(e) => e.stopPropagation()}
                             >
                               <span className="text-white font-medium text-lg">
                                 {(review.userName || review.username || 'U').charAt(0)}
@@ -403,6 +423,7 @@ const EntityDetail: React.FC = () => {
                                 to={`/profile/${(review.user_id || review.userId)?.toString()}`}
                                 className="font-semibold text-gray-900 hover:text-blue-600 transition-colors cursor-pointer"
                                 title={`View ${review.userName || review.username || 'user'}'s profile`}
+                                onClick={(e) => e.stopPropagation()}
                               >
                                 {review.userName || review.username || 'Anonymous'}
                               </Link>
@@ -438,19 +459,19 @@ const EntityDetail: React.FC = () => {
                           <VoteComponent 
                             entityType="review" 
                             entityId={parseInt((review.review_id || review.id || index).toString())}
-                            className="flex items-center space-x-4"
+                            className="flex items-center space-x-4 vote-component"
                           />
                           <div className="flex items-center space-x-4 relative">
                             <CommentComponent
                               entityType="review"
                               entityId={parseInt((review.review_id || review.id || index).toString())}
-                              className="inline-flex"
+                              className="inline-flex comment-component"
                             />
                             <ReportButton
                               itemType="review"
                               itemId={parseInt((review.review_id || review.id || index).toString())}
                               reportedUserId={parseInt((review.user_id || review.userId)?.toString() || '0')}
-                              className="inline-flex"
+                              className="inline-flex report-button"
                             />
                             <span>{review.upvotes || 0} helpful</span>
                           </div>

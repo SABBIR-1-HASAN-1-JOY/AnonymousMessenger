@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { Calendar, ArrowLeft, Edit3, Save, X } from 'lucide-react';
+import { Calendar, ArrowLeft, Edit3, Save, X, Trash2 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useApp } from '../../context/AppContext';
+import VoteComponent from '../common/VoteComponent';
 import CommentComponent from '../common/CommentComponent';
 import ReportButton from '../Reports/ReportButton';
 
@@ -76,6 +77,43 @@ const PostDetail: React.FC = () => {
       alert('Error updating post');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!post || !user) return;
+
+    // Confirm deletion
+    if (!window.confirm('Are you sure you want to delete this post? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`http://localhost:3000/api/posts/${post.id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'user-id': String(user.id)
+        },
+      });
+
+      if (!response.ok) {
+        let errorMessage = 'Failed to delete post';
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorData.message || errorMessage;
+        } catch (parseError) {
+          errorMessage = `Server error: ${response.status} ${response.statusText}`;
+        }
+        throw new Error(errorMessage);
+      }
+
+      // Navigate back to feed after successful deletion
+      navigate('/feed');
+      
+    } catch (err) {
+      console.error('Error deleting post:', err);
+      alert(err instanceof Error ? err.message : 'Failed to delete post');
     }
   };
 
@@ -167,13 +205,22 @@ const PostDetail: React.FC = () => {
               </div>
               <div className="flex items-center gap-2">
                 {(post.user_id === user?.id || post.userId === user?.id) && (
-                  <button
-                    onClick={handleEditStart}
-                    className="flex items-center gap-1 px-3 py-1 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-md transition-colors"
-                  >
-                    <Edit3 className="w-4 h-4" />
-                    Edit
-                  </button>
+                  <>
+                    <button
+                      onClick={handleEditStart}
+                      className="flex items-center gap-1 px-3 py-1 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-md transition-colors"
+                    >
+                      <Edit3 className="w-4 h-4" />
+                      Edit
+                    </button>
+                    <button
+                      onClick={handleDelete}
+                      className="flex items-center gap-1 px-3 py-1 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      Delete
+                    </button>
+                  </>
                 )}
                 <ReportButton
                   itemType="post"
@@ -251,6 +298,15 @@ const PostDetail: React.FC = () => {
                   )}
                 </div>
               )}
+            </div>
+
+            {/* Voting Section */}
+            <div className="mb-4 pb-4 border-b border-gray-100">
+              <VoteComponent 
+                entityType="post" 
+                entityId={parseInt(post.id.toString())}
+                className="flex items-center space-x-4"
+              />
             </div>
 
             {/* Comments Section */}

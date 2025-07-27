@@ -1,4 +1,5 @@
 // controllers/reviewControllers.js
+const pool = require('../config/db.js');
 const { 
   createNewReview, 
   fetchAllReviews, 
@@ -214,10 +215,63 @@ const updateReview = async (req, res) => {
   }
 };
 
+// Delete a review
+const deleteReview = async (req, res) => {
+  try {
+    const reviewId = req.params.reviewId;
+    const userId = req.headers['user-id'];
+    
+    if (!userId) {
+      return res.status(401).json({ error: 'User ID not provided' });
+    }
+
+    // First check if the review exists and belongs to the user
+    const checkQuery = `
+      SELECT user_id 
+      FROM review 
+      WHERE review_id = $1
+    `;
+    
+    const checkResult = await pool.query(checkQuery, [reviewId]);
+    
+    if (checkResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Review not found' });
+    }
+    
+    // Check if the user owns the review
+    if (checkResult.rows[0].user_id !== parseInt(userId)) {
+      return res.status(403).json({ error: 'Unauthorized to delete this review' });
+    }
+    
+    // Delete the review (trigger will handle cascading deletion)
+    const deleteQuery = `
+      DELETE FROM review 
+      WHERE review_id = $1 
+      RETURNING review_id
+    `;
+    
+    const result = await pool.query(deleteQuery, [reviewId]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Review not found' });
+    }
+    
+    res.status(200).json({
+      success: true,
+      message: 'Review and all associated data deleted successfully',
+      reviewId: result.rows[0].review_id
+    });
+  } catch (error) {
+    console.error('Error deleting review:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
 module.exports = {
   createReview,
   getAllReviews,
   getReviewsByUser,
   getReviewsByItem,
-  updateReview
+  updateReview,
+  deleteReview
 };
