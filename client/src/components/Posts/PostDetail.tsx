@@ -3,8 +3,8 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { Calendar, ArrowLeft, Edit3, Save, X, Trash2 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useApp } from '../../context/AppContext';
-import VoteComponent from '../common/VoteComponent';
 import CommentComponent from '../common/CommentComponent';
+import VoteComponent from '../common/VoteComponent';
 import ReportButton from '../Reports/ReportButton';
 
 const PostDetail: React.FC = () => {
@@ -31,7 +31,7 @@ const PostDetail: React.FC = () => {
       }
       setLoading(false);
     }
-  }, [id, posts]);
+  }, [id]); // Removed 'posts' from dependency array
 
   const handleEditStart = () => {
     setIsEditing(true);
@@ -82,38 +82,28 @@ const PostDetail: React.FC = () => {
 
   const handleDelete = async () => {
     if (!post || !user) return;
-
-    // Confirm deletion
-    if (!window.confirm('Are you sure you want to delete this post? This action cannot be undone.')) {
-      return;
-    }
-
+    
+    const confirmed = window.confirm('Are you sure you want to delete this post? This action cannot be undone.');
+    if (!confirmed) return;
+    
     try {
       const response = await fetch(`http://localhost:3000/api/posts/${post.id}`, {
         method: 'DELETE',
         headers: {
-          'Content-Type': 'application/json',
-          'user-id': String(user.id)
-        },
+          'user-id': user.id
+        }
       });
 
       if (!response.ok) {
-        let errorMessage = 'Failed to delete post';
-        try {
-          const errorData = await response.json();
-          errorMessage = errorData.error || errorData.message || errorMessage;
-        } catch (parseError) {
-          errorMessage = `Server error: ${response.status} ${response.statusText}`;
-        }
-        throw new Error(errorMessage);
+        throw new Error('Failed to delete post');
       }
 
       // Navigate back to feed after successful deletion
       navigate('/feed');
       
-    } catch (err) {
-      console.error('Error deleting post:', err);
-      alert(err instanceof Error ? err.message : 'Failed to delete post');
+    } catch (error) {
+      console.error('Error deleting post:', error);
+      alert('Failed to delete post. Please try again.');
     }
   };
 
@@ -300,12 +290,11 @@ const PostDetail: React.FC = () => {
               )}
             </div>
 
-            {/* Voting Section */}
-            <div className="mb-4 pb-4 border-b border-gray-100">
-              <VoteComponent 
-                entityType="post" 
-                entityId={parseInt(post.id.toString())}
-                className="flex items-center space-x-4"
+            {/* Vote Component */}
+            <div className="mt-6">
+              <VoteComponent
+                entityType="post"
+                entityId={parseInt((post.id).toString())}
               />
             </div>
 

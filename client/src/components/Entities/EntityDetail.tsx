@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { Star, Calendar, Plus, ArrowLeft, Loader } from 'lucide-react';
+import { Star, Calendar, Plus, ArrowLeft, Loader, Trash2 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import CreateReview from './CreateReview';
 import VoteComponent from '../common/VoteComponent';
@@ -41,12 +41,44 @@ const EntityDetail: React.FC = () => {
   // Add click handler for reviews
   const handleReviewClick = (review: any, event: React.MouseEvent) => {
     // Don't navigate if clicking on interactive elements
-    if ((event.target as HTMLElement).closest('button, a, .vote-component, .comment-component, .report-button')) {
+    if ((event.target as HTMLElement).closest('button, a, .vote-component, .comment-component, .report-button, .delete-button')) {
       return;
     }
     
     const reviewId = review.review_id || review.id;
     navigate(`/reviews/${reviewId}`);
+  };
+
+  // Handle deleting a review
+  const handleDeleteReview = async (reviewId: string, event: React.MouseEvent) => {
+    event.stopPropagation(); // Prevent navigation when clicking delete
+    
+    if (!user) return;
+    
+    const confirmed = window.confirm('Are you sure you want to delete this review? This action cannot be undone.');
+    if (!confirmed) return;
+    
+    try {
+      const response = await fetch(`http://localhost:3000/api/reviews/${reviewId}`, {
+        method: 'DELETE',
+        headers: {
+          'user-id': user.id
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete review');
+      }
+
+      // Remove the review from the local state
+      setEntityReviews(prevReviews => prevReviews.filter(review => 
+        (review.review_id || review.id) !== reviewId
+      ));
+      
+    } catch (error) {
+      console.error('Error deleting review:', error);
+      alert('Failed to delete review. Please try again.');
+    }
   };
 
   // Fetch entity details from server
@@ -462,6 +494,16 @@ const EntityDetail: React.FC = () => {
                             className="flex items-center space-x-4 vote-component"
                           />
                           <div className="flex items-center space-x-4 relative">
+                            {/* Delete button for user's own reviews */}
+                            {(review.user_id === user?.id || review.userId === user?.id) && (
+                              <button
+                                onClick={(e) => handleDeleteReview((review.review_id || review.id || index).toString(), e)}
+                                className="flex items-center gap-1 px-3 py-1 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                                Delete
+                              </button>
+                            )}
                             <CommentComponent
                               entityType="review"
                               entityId={parseInt((review.review_id || review.id || index).toString())}

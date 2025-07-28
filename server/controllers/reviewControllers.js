@@ -1,5 +1,4 @@
 // controllers/reviewControllers.js
-const pool = require('../config/db.js');
 const { 
   createNewReview, 
   fetchAllReviews, 
@@ -243,7 +242,7 @@ const deleteReview = async (req, res) => {
       return res.status(403).json({ error: 'Unauthorized to delete this review' });
     }
     
-    // Delete the review (trigger will handle cascading deletion)
+    // Delete the review
     const deleteQuery = `
       DELETE FROM review 
       WHERE review_id = $1 
@@ -258,7 +257,7 @@ const deleteReview = async (req, res) => {
     
     res.status(200).json({
       success: true,
-      message: 'Review and all associated data deleted successfully',
+      message: 'Review deleted successfully',
       reviewId: result.rows[0].review_id
     });
   } catch (error) {

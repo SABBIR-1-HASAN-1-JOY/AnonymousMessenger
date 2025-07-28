@@ -206,95 +206,58 @@ const Feed: React.FC = () => {
 
   // Handle deleting a post
   const handleDeletePost = async (postId: string) => {
-    if (!user?.id) {
-      return;
-    }
-
-    // Confirm deletion
-    if (!window.confirm('Are you sure you want to delete this post? This action cannot be undone.')) {
-      return;
-    }
-
+    if (!user) return;
+    
+    const confirmed = window.confirm('Are you sure you want to delete this post? This action cannot be undone.');
+    if (!confirmed) return;
+    
     try {
-      console.log('Deleting post:', { postId, userId: user.id });
-      
       const response = await fetch(`http://localhost:3000/api/posts/${postId}`, {
         method: 'DELETE',
         headers: {
-          'Content-Type': 'application/json',
-          'user-id': String(user.id)
-        },
+          'user-id': user.id
+        }
       });
 
       if (!response.ok) {
-        let errorMessage = 'Failed to delete post';
-        try {
-          const errorData = await response.json();
-          errorMessage = errorData.error || errorData.message || errorMessage;
-        } catch (parseError) {
-          errorMessage = `Server error: ${response.status} ${response.statusText}`;
-        }
-        throw new Error(errorMessage);
+        throw new Error('Failed to delete post');
       }
 
-      const result = await response.json();
-      console.log('Post deleted successfully:', result);
-
       // Remove the post from the posts context
-      setPosts(prevPosts => 
-        prevPosts.filter(post => post.id !== postId)
-      );
+      setPosts(prevPosts => prevPosts.filter(post => post.id !== postId));
       
-    } catch (err) {
-      console.error('Error deleting post:', err);
-      alert(err instanceof Error ? err.message : 'Failed to delete post');
+    } catch (error) {
+      console.error('Error deleting post:', error);
+      alert('Failed to delete post. Please try again.');
     }
   };
 
   // Handle deleting a review
   const handleDeleteReview = async (reviewId: string) => {
-    if (!user?.id) {
-      return;
-    }
-
-    // Confirm deletion
-    if (!window.confirm('Are you sure you want to delete this review? This action cannot be undone.')) {
-      return;
-    }
-
+    if (!user) return;
+    
+    const confirmed = window.confirm('Are you sure you want to delete this review? This action cannot be undone.');
+    if (!confirmed) return;
+    
     try {
-      console.log('Deleting review:', { reviewId, userId: user.id });
-      
       const response = await fetch(`http://localhost:3000/api/reviews/${reviewId}`, {
         method: 'DELETE',
         headers: {
-          'Content-Type': 'application/json',
-          'user-id': String(user.id)
-        },
+          'user-id': user.id
+        }
       });
 
       if (!response.ok) {
-        let errorMessage = 'Failed to delete review';
-        try {
-          const errorData = await response.json();
-          errorMessage = errorData.error || errorData.message || errorMessage;
-        } catch (parseError) {
-          errorMessage = `Server error: ${response.status} ${response.statusText}`;
-        }
-        throw new Error(errorMessage);
+        throw new Error('Failed to delete review');
       }
 
-      const result = await response.json();
-      console.log('Review deleted successfully:', result);
-
-      // Note: Since reviews aren't managed in a context like posts, 
-      // the user would need to refresh to see the updated feed
-      // or we could implement a reviews context similar to posts
-      alert('Review deleted successfully. Please refresh the page to see the updated feed.');
+      // Remove the review from the context would need to be handled by parent component
+      // For now, we'll reload the page or navigate
+      window.location.reload();
       
-    } catch (err) {
-      console.error('Error deleting review:', err);
-      alert(err instanceof Error ? err.message : 'Failed to delete review');
+    } catch (error) {
+      console.error('Error deleting review:', error);
+      alert('Failed to delete review. Please try again.');
     }
   };
 
@@ -558,6 +521,37 @@ const Feed: React.FC = () => {
                       )}
                     </div>
                   </div>
+                  
+                  {/* Action buttons for user's own content */}
+                  <div className="flex items-center gap-2">
+                    {/* Delete button for posts */}
+                    {item.itemType === 'post' && (item.userId === user?.id || item.user_id?.toString() === user?.id) && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeletePost(item.id);
+                        }}
+                        className="flex items-center gap-1 px-3 py-1 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                        Delete
+                      </button>
+                    )}
+                    
+                    {/* Delete button for reviews */}
+                    {item.itemType === 'review' && item.userId === user?.id && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteReview(item.id);
+                        }}
+                        className="flex items-center gap-1 px-3 py-1 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                        Delete
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 {/* Content */}
@@ -614,19 +608,6 @@ const Feed: React.FC = () => {
                               reportedUserId={parseInt((item.userId || item.user_id)?.toString() || '0')}
                               className="inline-flex"
                             />
-                            {/* Delete button - only show for own posts */}
-                            {(item.userId || item.user_id?.toString()) === user?.id && (
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation(); // Prevent feed item click navigation
-                                  handleDeletePost(item.id);
-                                }}
-                                className="inline-flex items-center px-2 py-1 text-red-600 hover:text-red-700 hover:bg-red-50 rounded transition-colors"
-                                title="Delete post"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            )}
                           </div>
                         </div>
                       </div>
@@ -660,19 +641,6 @@ const Feed: React.FC = () => {
                               reportedUserId={parseInt((item.userId || item.user_id)?.toString() || '0')}
                               className="inline-flex"
                             />
-                            {/* Delete button - only show for own posts */}
-                            {(item.userId || item.user_id?.toString()) === user?.id && (
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation(); // Prevent feed item click navigation
-                                  handleDeletePost(item.id);
-                                }}
-                                className="inline-flex items-center px-2 py-1 text-red-600 hover:text-red-700 hover:bg-red-50 rounded transition-colors"
-                                title="Delete post"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            )}
                           </div>
                         </div>
                       </div>
@@ -712,19 +680,6 @@ const Feed: React.FC = () => {
                           reportedUserId={parseInt(item.userId?.toString() || '0')}
                           className="inline-flex"
                         />
-                        {/* Delete button - only show for own reviews */}
-                        {item.userId === user?.id && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation(); // Prevent feed item click navigation
-                              handleDeleteReview(item.id);
-                            }}
-                            className="inline-flex items-center px-2 py-1 text-red-600 hover:text-red-700 hover:bg-red-50 rounded transition-colors"
-                            title="Delete review"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        )}
                       </div>
                     </div>
                     

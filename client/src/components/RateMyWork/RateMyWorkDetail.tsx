@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { Calendar, ArrowLeft, FileText, Trash2 } from 'lucide-react';
+import { Calendar, ArrowLeft, FileText, Trash2, Edit3, Save, X } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useApp } from '../../context/AppContext';
 import CommentComponent from '../common/CommentComponent';
@@ -43,6 +43,10 @@ const RateMyWorkDetail: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [userRatings, setUserRatings] = useState<{[key: string]: number}>({});
   const [postData, setPostData] = useState<any>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editContent, setEditContent] = useState('');
+  const [editTitle, setEditTitle] = useState('');
+  const [saving, setSaving] = useState(false);
 
   const fetchPostData = useCallback(async () => {
     if (!id) return;
@@ -108,15 +112,15 @@ const RateMyWorkDetail: React.FC = () => {
         setLoading(false);
       }
     }
-  }, [id, posts]);
+  }, [id]); // Removed 'posts' from dependency array
 
   // Separate effect for data fetching after work is set
   useEffect(() => {
-    if (work) {
+    if (work?.id) {
       fetchPostData();
       loadUserRatings();
     }
-  }, [work, fetchPostData, loadUserRatings]);
+  }, [work?.id, fetchPostData, loadUserRatings]); // Use work?.id instead of work object
 
   const handleRatePost = useCallback(async (postId: string, rating: number) => {
     if (!user) return;
@@ -181,26 +185,76 @@ const RateMyWorkDetail: React.FC = () => {
   const handleDelete = async () => {
     if (!work || !user) return;
     
-    const isConfirmed = window.confirm('Are you sure you want to delete this post? This action cannot be undone.');
-    if (!isConfirmed) return;
-
+    const confirmed = window.confirm('Are you sure you want to delete this post? This action cannot be undone.');
+    if (!confirmed) return;
+    
     try {
       const response = await fetch(`http://localhost:3000/api/posts/${work.id}`, {
         method: 'DELETE',
         headers: {
-          'user-id': user.id.toString(),
+          'user-id': user.id
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete post');
+      }
+
+      // Navigate back to feed after successful deletion
+      navigate('/feed');
+      
+    } catch (error) {
+      console.error('Error deleting post:', error);
+      alert('Failed to delete post. Please try again.');
+    }
+  };
+
+  const handleEditStart = () => {
+    setIsEditing(true);
+    setEditContent(work?.description || work?.content || '');
+    setEditTitle(work?.title || '');
+  };
+
+  const handleEditCancel = () => {
+    setIsEditing(false);
+    setEditContent(work?.description || work?.content || '');
+    setEditTitle(work?.title || '');
+  };
+
+  const handleEditSave = async () => {
+    if (!work || !user) return;
+    
+    setSaving(true);
+    try {
+      const response = await fetch(`http://localhost:3000/api/posts/${work.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'user-id': user.id
         },
+        body: JSON.stringify({
+          content: editContent,
+          description: editContent,
+          title: editTitle
+        })
       });
 
       if (response.ok) {
-        navigate('/feed');
+        setWork({ ...work, 
+          description: editContent,
+          content: editContent,
+          title: editTitle 
+        });
+        setIsEditing(false);
       } else {
-        console.error('Failed to delete post');
-        alert('Failed to delete post. Please try again.');
+        console.error('Failed to update post');
+        alert('Failed to update post');
       }
     } catch (error) {
-      console.error('Error deleting post:', error);
-      alert('An error occurred while deleting the post.');
+      console.error('Error updating post:', error);
+      alert('Error updating post');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -298,13 +352,22 @@ const RateMyWorkDetail: React.FC = () => {
               </div>
               <div className="flex items-center gap-2">
                 {work.userId === user?.id && (
-                  <button
-                    onClick={handleDelete}
-                    className="flex items-center gap-1 px-3 py-1 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                    Delete
-                  </button>
+                  <>
+                    <button
+                      onClick={handleEditStart}
+                      className="flex items-center gap-1 px-3 py-1 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-md transition-colors"
+                    >
+                      <Edit3 className="w-4 h-4" />
+                      Edit
+                    </button>
+                    <button
+                      onClick={handleDelete}
+                      className="flex items-center gap-1 px-3 py-1 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      Delete
+                    </button>
+                  </>
                 )}
                 <ReportButton
                   itemType="post"
@@ -318,28 +381,79 @@ const RateMyWorkDetail: React.FC = () => {
           {/* Content */}
           <div className="p-6">
             <div className="mb-6">
-              {work.title && (
-                <h2 className="text-xl font-bold text-gray-900 mb-3">
-                  {work.title}
-                </h2>
-              )}
-              <p className="text-gray-800 text-lg leading-relaxed whitespace-pre-wrap">
-                {work.description}
-              </p>
-
-              {/* Work Content/Media */}
-              {work.content && (
-                <div className="mt-4 p-4 bg-gray-50 border border-gray-200 rounded-lg">
-                  <div className="flex items-start gap-3">
-                    <FileText className="w-5 h-5 text-gray-600 mt-1" />
-                    <div className="flex-1">
-                      <h4 className="font-medium text-gray-900 mb-2">Work Content</h4>
-                      <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">
-                        {work.content}
-                      </p>
-                    </div>
+              {isEditing ? (
+                <div className="space-y-4">
+                  {/* Edit form */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Title
+                    </label>
+                    <input
+                      type="text"
+                      value={editTitle}
+                      onChange={(e) => setEditTitle(e.target.value)}
+                      className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="Enter title"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Description
+                    </label>
+                    <textarea
+                      value={editContent}
+                      onChange={(e) => setEditContent(e.target.value)}
+                      className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+                      rows={6}
+                      placeholder="Describe your work"
+                    />
+                  </div>
+                  
+                  {/* Action buttons */}
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={handleEditSave}
+                      disabled={saving}
+                      className="flex items-center gap-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <Save className="w-4 h-4" />
+                      {saving ? 'Saving...' : 'Save'}
+                    </button>
+                    <button
+                      onClick={handleEditCancel}
+                      className="flex items-center gap-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300"
+                    >
+                      <X className="w-4 h-4" />
+                      Cancel
+                    </button>
                   </div>
                 </div>
+              ) : (
+                <>
+                  {work.title && (
+                    <h2 className="text-xl font-bold text-gray-900 mb-3">
+                      {work.title}
+                    </h2>
+                  )}
+                  <p className="text-gray-800 text-lg leading-relaxed whitespace-pre-wrap">
+                    {work.description}
+                  </p>
+
+                  {/* Work Content/Media */}
+                  {work.content && (
+                    <div className="mt-4 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                      <div className="flex items-start gap-3">
+                        <FileText className="w-5 h-5 text-gray-600 mt-1" />
+                        <div className="flex-1">
+                          <h4 className="font-medium text-gray-900 mb-2">Work Content</h4>
+                          <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">
+                            {work.content}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
 
               {/* Images */}
