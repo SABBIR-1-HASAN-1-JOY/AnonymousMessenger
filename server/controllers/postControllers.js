@@ -311,20 +311,13 @@ const updatePost = async (req, res) => {
     // For now, we'll assume authorization is handled elsewhere
     
     const query = `
-      UPDATE posts 
-      SET post_text = $1, updated_at = CURRENT_TIMESTAMP
+      UPDATE post 
+      SET post_text = $1
       WHERE post_id = $2
       RETURNING *
     `;
     
-    const { Pool } = require('pg');
-    const pool = new Pool({
-      user: process.env.DB_USER,
-      host: process.env.DB_HOST,
-      database: process.env.DB_NAME,
-      password: process.env.DB_PASSWORD,
-      port: process.env.DB_PORT,
-    });
+    const pool = require('../config/db.js');
     
     const result = await pool.query(query, [content, postId]);
     

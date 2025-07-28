@@ -56,13 +56,23 @@ exports.getCommentById = async (commentId) => {
 
 // Update comment
 exports.updateComment = async (commentId, commentText) => {
+  console.log('=== UPDATE COMMENT QUERY ===');
+  console.log('Comment ID:', commentId, 'Type:', typeof commentId);
+  console.log('Comment Text:', commentText);
+  
   const query = `
     UPDATE comments
     SET comment_text = $1
     WHERE comment_id = $2
     RETURNING *
   `;
+  console.log('Executing query:', query);
+  console.log('With parameters:', [commentText, commentId]);
+  
   const result = await pool.query(query, [commentText, commentId]);
+  console.log('Query result:', result.rows);
+  console.log('Returned comment:', result.rows[0]);
+  
   return result.rows[0];
 };
 

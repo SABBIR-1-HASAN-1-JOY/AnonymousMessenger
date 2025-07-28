@@ -138,12 +138,16 @@ const getCommentById = async (req, res) => {
 // Update a comment
 const updateComment = async (req, res) => {
   try {
-    console.log('=== UPDATE COMMENT CONTROLLER ===');
+    console.log('=== UPDATE COMMENT CONTROLLER HIT ===');
     console.log('Comment ID:', req.params.commentId);
     console.log('Request body:', req.body);
+    console.log('Request headers:', req.headers);
+    console.log('Request method:', req.method);
+    console.log('Request URL:', req.url);
     
     const { commentId } = req.params;
     const { commentText } = req.body;
+    const userId = req.headers['user-id'];
 
     if (!commentText || commentText.trim().length === 0) {
       return res.status(400).json({
@@ -151,6 +155,13 @@ const updateComment = async (req, res) => {
       });
     }
 
+    if (!userId) {
+      return res.status(400).json({
+        error: 'User ID is required'
+      });
+    }
+
+    // Update the comment directly
     const result = await commentServices.updateComment(parseInt(commentId), commentText.trim());
     
     if (!result.success) {
