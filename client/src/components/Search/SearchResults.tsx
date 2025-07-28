@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useSearchParams, Link } from 'react-router-dom';
+import { useSearchParams, Link, useNavigate } from 'react-router-dom';
 import { Search } from 'lucide-react';
 
 interface SearchEntity {
@@ -21,11 +21,18 @@ interface SearchUser {
 
 const SearchResults: React.FC = () => {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const query = searchParams.get('q') || '';
   const [filter, setFilter] = useState<'all' | 'entities' | 'users'>('all');
   const [entities, setEntities] = useState<SearchEntity[]>([]);
   const [users, setUsers] = useState<SearchUser[]>([]);
   const [loading, setLoading] = useState(false);
+  const [localSearchQuery, setLocalSearchQuery] = useState(query);
+
+  // Sync local search query with URL parameter changes
+  useEffect(() => {
+    setLocalSearchQuery(query);
+  }, [query]);
 
   useEffect(() => {
     const performSearch = async () => {
@@ -65,6 +72,13 @@ const SearchResults: React.FC = () => {
   const totalResults = entities.length + users.length;
   const filteredTotal = filteredResults.entities.length + filteredResults.users.length;
 
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (localSearchQuery.trim()) {
+      navigate(`/search?q=${encodeURIComponent(localSearchQuery.trim())}`);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -74,21 +88,19 @@ const SearchResults: React.FC = () => {
         </div>
 
         <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-            <input
-              type="text"
-              defaultValue={query}
-              placeholder="Search exact entity names or usernames..."
-              className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-lg"
-              onKeyPress={(e) => {
-                if (e.key === 'Enter') {
-                  const newQuery = (e.target as HTMLInputElement).value;
-                  window.location.href = `/search?q=${encodeURIComponent(newQuery)}`;
-                }
-              }}
-            />
-          </div>
+          <form onSubmit={handleSearchSubmit}>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <input
+                name="search"
+                type="text"
+                value={localSearchQuery}
+                onChange={(e) => setLocalSearchQuery(e.target.value)}
+                placeholder="Search exact entity names or usernames..."
+                className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-lg"
+              />
+            </div>
+          </form>
         </div>
 
         {query && (

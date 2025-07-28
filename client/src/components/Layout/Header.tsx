@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Search, Bell, User, Menu, X, LogOut } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
@@ -11,6 +11,17 @@ const Header: React.FC = () => {
   const navigate = useNavigate();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Sync search query with URL parameters when on search page
+  useEffect(() => {
+    if (location.pathname === '/search') {
+      const urlParams = new URLSearchParams(location.search);
+      const query = urlParams.get('q') || '';
+      setSearchQuery(query);
+    } else {
+      setSearchQuery('');
+    }
+  }, [location.pathname, location.search]);
 
   const unreadNotifications = notifications.filter(n => !n.read && n.userId === user?.id);
 
@@ -34,7 +45,6 @@ const Header: React.FC = () => {
     e.preventDefault();
     if (searchQuery.trim()) {
       navigate(`/search?q=${encodeURIComponent(searchQuery)}`);
-      setSearchQuery('');
     }
   };
 
