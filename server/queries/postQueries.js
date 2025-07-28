@@ -9,10 +9,29 @@ const createPost = async (postData) => {
     const result = await pool.query(`
       INSERT INTO post (user_id, post_text, is_rate_enabled, created_at)
       VALUES ($1, $2, $3, NOW())
-      RETURNING *
+      RETURNING post_id, user_id, post_text, is_rate_enabled, ratingpoint, average_rating, total_ratings, created_at
     `, [userId, content, is_rated_enabled]);
     
-    return result.rows[0];
+    // Get the created post with user information
+    const postWithUser = await pool.query(`
+      SELECT 
+        p.post_id,
+        p.user_id,
+        p.post_text,
+        p.is_rate_enabled,
+        p.ratingpoint,
+        p.average_rating,
+        p.total_ratings,
+        p.created_at,
+        u.username as user_name,
+        ph.photo_name as user_profile_picture
+      FROM post p
+      JOIN "user" u ON p.user_id = u.user_id
+      LEFT JOIN photos ph ON ph.user_id = u.user_id AND ph.type = 'profile'
+      WHERE p.post_id = $1
+    `, [result.rows[0].post_id]);
+    
+    return postWithUser.rows[0];
   } catch (error) {
     console.error('Error in createPost:', error);
     throw error;
@@ -32,9 +51,11 @@ const getAllPosts = async () => {
         p.average_rating,
         p.total_ratings,
         p.created_at,
-        u.username as user_name
+        u.username as user_name,
+        ph.photo_name as user_profile_picture
       FROM post p
       JOIN "user" u ON p.user_id = u.user_id
+      LEFT JOIN photos ph ON ph.user_id = u.user_id AND ph.type = 'profile'
       ORDER BY p.created_at DESC
     `);
     
@@ -58,9 +79,11 @@ const getPostsByUserId = async (userId) => {
         p.average_rating,
         p.total_ratings,
         p.created_at,
-        u.username as user_name
+        u.username as user_name,
+        ph.photo_name as user_profile_picture
       FROM post p
       JOIN "user" u ON p.user_id = u.user_id
+      LEFT JOIN photos ph ON ph.user_id = u.user_id AND ph.type = 'profile'
       WHERE p.user_id = $1
       ORDER BY p.created_at DESC
     `, [userId]);

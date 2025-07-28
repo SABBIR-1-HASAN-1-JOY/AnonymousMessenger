@@ -19,8 +19,26 @@ const createReview = async (reviewData) => {
       RETURNING review_id, user_id, item_id, ratingpoint, review_text, title, created_at
     `, [userId, itemId, rating, reviewText,title]);
     
-    console.log('Review created successfully:', result.rows[0]);
-    return result.rows[0];
+    // Get the created review with user information
+    const reviewWithUser = await pool.query(`
+      SELECT 
+        r.review_id,
+        r.user_id,
+        r.item_id,
+        r.ratingpoint,
+        r.review_text,
+        r.title,
+        r.created_at,
+        u.username as user_name,
+        ph.photo_name as user_profile_picture
+      FROM review r
+      JOIN "user" u ON r.user_id = u.user_id
+      LEFT JOIN photos ph ON ph.user_id = u.user_id AND ph.type = 'profile'
+      WHERE r.review_id = $1
+    `, [result.rows[0].review_id]);
+    
+    console.log('Review created successfully with user info:', reviewWithUser.rows[0]);
+    return reviewWithUser.rows[0];
   } catch (error) {
     console.error('Error in createReview:', error);
     console.error('Error details:', {
@@ -44,9 +62,11 @@ const getAllReviews = async () => {
         r.review_text,
         r.title,
         r.created_at,
-        u.username as user_name
+        u.username as user_name,
+        ph.photo_name as user_profile_picture
       FROM review r
       JOIN "user" u ON r.user_id = u.user_id
+      LEFT JOIN photos ph ON ph.user_id = u.user_id AND ph.type = 'profile'
       ORDER BY r.created_at DESC
     `);
     
@@ -69,9 +89,11 @@ const getReviewsByUserId = async (userId) => {
         r.review_text,
         r.title,
         r.created_at,
-        u.username as user_name
+        u.username as user_name,
+        ph.photo_name as user_profile_picture
       FROM review r
       JOIN "user" u ON r.user_id = u.user_id
+      LEFT JOIN photos ph ON ph.user_id = u.user_id AND ph.type = 'profile'
       WHERE r.user_id = $1
       ORDER BY r.created_at DESC
     `, [userId]);
@@ -95,9 +117,11 @@ const getReviewsByItemId = async (itemId) => {
         r.review_text,
         r.title,
         r.created_at,
-        u.username as user_name
+        u.username as user_name,
+        ph.photo_name as user_profile_picture
       FROM review r
       JOIN "user" u ON r.user_id = u.user_id
+      LEFT JOIN photos ph ON ph.user_id = u.user_id AND ph.type = 'profile'
       WHERE r.item_id = $1
       ORDER BY r.created_at DESC
     `, [itemId]);

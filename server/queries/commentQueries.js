@@ -4,13 +4,25 @@ const pool = require('../config/db');
 // Create a new comment
 exports.createComment = async (commentData) => {
   const { userId, commentText, entityType, entityId, parentCommentId } = commentData;
-  const query = `
+  const insertQuery = `
     INSERT INTO comments (user_id, comment_text, entity_type, entity_id, parent_comment_id, created_at)
     VALUES ($1, $2, $3, $4, $5, NOW())
-    RETURNING *
+    RETURNING comment_id
   `;
-  const result = await pool.query(query, [userId, commentText, entityType, entityId, parentCommentId]);
-  return result.rows[0];
+  const insertResult = await pool.query(insertQuery, [userId, commentText, entityType, entityId, parentCommentId]);
+  
+  // Get the created comment with user information
+  const selectQuery = `
+    SELECT 
+      c.*,
+      u.username,
+      u.profile_picture
+    FROM comments c
+    LEFT JOIN "user" u ON c.user_id = u.user_id
+    WHERE c.comment_id = $1
+  `;
+  const selectResult = await pool.query(selectQuery, [insertResult.rows[0].comment_id]);
+  return selectResult.rows[0];
 };
 
 // Get comments for a specific entity (post, review, etc.)

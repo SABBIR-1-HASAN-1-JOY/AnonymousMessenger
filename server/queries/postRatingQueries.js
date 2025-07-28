@@ -113,9 +113,11 @@ const getTopRatedPosts = async (pool, limit = 10, minRatings = 3) => {
         p.*,
         u.username,
         p.average_rating,
-        p.total_ratings
+        p.total_ratings,
+        ph.photo_name as user_profile_picture
       FROM post p
       JOIN "user" u ON p.user_id = u.user_id
+      LEFT JOIN photos ph ON ph.user_id = u.user_id AND ph.type = 'profile'
       WHERE p.is_rate_enabled = true 
         AND p.total_ratings >= $2
         AND p.average_rating IS NOT NULL

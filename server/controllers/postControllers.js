@@ -41,6 +41,7 @@ const createPost = async (req, res) => {
       userId: newPost.user_id.toString(),
       user_id: newPost.user_id,
       userName: newPost.user_name || 'Unknown User',
+      userProfilePicture: newPost.user_profile_picture ? `http://localhost:3000/api/photos/file/${newPost.user_profile_picture}` : null,
       type: newPost.is_rate_enabled ? 'rate-my-work' : 'simple',
       content: newPost.post_text,
       description: newPost.is_rate_enabled ? newPost.post_text : undefined,
@@ -66,31 +67,22 @@ const getAllPosts = async (req, res) => {
     
     const posts = await fetchAllPosts();
     
-    // Format response to match frontend expectations
-    const responseData = posts.map(post => {
-      return {
-        id: post.post_id.toString(),
-        post_id: post.post_id,
-        userId: post.user_id.toString(),
-        user_id: post.user_id,
-        userName: post.user_name,
-        type: post.is_rate_enabled ? 'rate-my-work' : 'simple',
-        content: post.post_text,
-        description: post.is_rate_enabled ? post.post_text : undefined,
-        upvotes: 0,
-        downvotes: 0,
-        createdAt: post.created_at,
-        created_at: post.created_at,
-        ratings: [],
-        comments: [],
-        // Enhanced rating information using new system
-        isRatedEnabled: post.is_rate_enabled,
-        averageRating: parseFloat(post.average_rating) || parseFloat(post.ratingpoint) || 0,
-        totalRatings: parseInt(post.total_ratings) || (post.ratingpoint ? 1 : 0),
-        ratingpoint: parseFloat(post.average_rating) || parseFloat(post.ratingpoint) || 0,
-        userRating: 0 // Will be populated by frontend if needed
-      };
-    });
+        // Format response to match frontend expectations
+    const responseData = posts.map(post => ({
+      id: post.post_id.toString(),
+      post_id: post.post_id,
+      userId: post.user_id.toString(),
+      user_id: post.user_id,
+      userName: post.user_name,
+      userProfilePicture: post.user_profile_picture ? `http://localhost:3000/api/photos/file/${post.user_profile_picture}` : null,
+      type: post.is_rate_enabled ? 'rate-my-work' : 'simple',
+      content: post.post_text,
+      upvotes: 0,
+      downvotes: 0,
+      createdAt: post.created_at,
+      created_at: post.created_at,
+      ratings: [] // Will be populated when rating system is implemented
+    }));
     
     console.log(`Found ${responseData.length} posts`);
     res.status(200).json(responseData);
@@ -131,6 +123,7 @@ const getPostsByUser = async (req, res) => {
         userId: post.user_id.toString(),
         user_id: post.user_id,
         userName: post.user_name,
+        userProfilePicture: post.user_profile_picture ? `http://localhost:3000/api/photos/file/${post.user_profile_picture}` : null,
         type: post.is_rate_enabled ? 'rate-my-work' : 'simple',
         content: post.is_rate_enabled ? undefined : post.post_text,
         title: parsedContent.title,
@@ -435,6 +428,7 @@ const getTopRatedPosts = async (req, res) => {
       userId: post.user_id.toString(),
       user_id: post.user_id,
       userName: post.username,
+      userProfilePicture: post.user_profile_picture ? `http://localhost:3000/api/photos/file/${post.user_profile_picture}` : null,
       type: 'rate-my-work',
       content: post.post_text,
       description: post.post_text,

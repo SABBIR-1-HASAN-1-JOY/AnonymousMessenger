@@ -10,9 +10,10 @@ const searchEntities = async (query) => {
         re.item_name,
         re.description,
         c.category_name,
-        re.picture
+        ph.photo_name as entity_picture
       FROM reviewable_entity re
       LEFT JOIN category c ON re.category_id = c.category_id
+      LEFT JOIN photos ph ON ph.source_id = re.item_id AND ph.type = 'entities'
       WHERE 
         LOWER(re.item_name) LIKE LOWER($1)
       ORDER BY re.item_name
@@ -32,8 +33,10 @@ const searchUsers = async (query) => {
     const result = await pool.query(`
       SELECT 
         u.user_id,
-        u.username
+        u.username,
+        ph.photo_name as profile_picture
       FROM "user" u
+      LEFT JOIN photos ph ON ph.user_id = u.user_id AND ph.type = 'profile'
       WHERE 
         LOWER(u.username) LIKE LOWER($1)
       ORDER BY u.username

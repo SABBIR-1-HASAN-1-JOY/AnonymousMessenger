@@ -47,6 +47,7 @@ const createReview = async (req, res) => {
       userId: newReview.user_id.toString(),
       user_id: newReview.user_id,
       userName: newReview.user_name || 'Unknown User',
+      userProfilePicture: newReview.user_profile_picture ? `http://localhost:3000/api/photos/file/${newReview.user_profile_picture}` : null,
       title: newReview.title, // Use title from database
       body: newReview.review_text,
       rating: newReview.ratingpoint, // Use ratingpoint from DB
@@ -87,6 +88,7 @@ const getAllReviews = async (req, res) => {
       userId: review.user_id.toString(),
       user_id: review.user_id,
       userName: review.user_name,
+      userProfilePicture: review.user_profile_picture ? `http://localhost:3000/api/photos/file/${review.user_profile_picture}` : null,
       title: review.title, // Use title from database
       body: review.review_text,
       rating: review.ratingpoint, // Use ratingpoint from DB
@@ -121,6 +123,7 @@ const getReviewsByUser = async (req, res) => {
       userId: review.user_id.toString(),
       user_id: review.user_id,
       userName: review.user_name,
+      userProfilePicture: review.user_profile_picture ? `http://localhost:3000/api/photos/file/${review.user_profile_picture}` : null,
       title: review.title, // Use title from database
       body: review.review_text,
       rating: review.ratingpoint, // Use ratingpoint from DB
@@ -155,6 +158,7 @@ const getReviewsByItem = async (req, res) => {
       userId: review.user_id.toString(),
       user_id: review.user_id,
       userName: review.user_name,
+      userProfilePicture: review.user_profile_picture ? `http://localhost:3000/api/photos/file/${review.user_profile_picture}` : null,
       title: review.title, // Use title from database
       body: review.review_text,
       rating: review.ratingpoint, // Use ratingpoint from DB

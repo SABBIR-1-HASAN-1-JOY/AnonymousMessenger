@@ -24,7 +24,7 @@ const searchEntities = async (req, res) => {
       name: entity.item_name,
       description: entity.description,
       category: entity.category_name,
-      picture: entity.picture
+      picture: entity.entity_picture ? `http://localhost:3000/api/photos/file/${entity.entity_picture}` : null
     }));
     
     console.log(`Found ${responseData.length} entities`);
@@ -52,7 +52,8 @@ const searchUsers = async (req, res) => {
     const responseData = users.map(user => ({
       id: user.user_id.toString(),
       username: user.username,
-      displayName: user.username // Use username as display name
+      displayName: user.username, // Use username as display name
+      profilePicture: user.profile_picture ? `http://localhost:3000/api/photos/file/${user.profile_picture}` : null
     }));
     
     console.log(`Found ${responseData.length} users`);
@@ -83,7 +84,7 @@ const searchAll = async (req, res) => {
       name: entity.item_name,
       description: entity.description,
       category: entity.category_name,
-      picture: entity.picture,
+      picture: entity.entity_picture ? `http://localhost:3000/api/photos/file/${entity.entity_picture}` : null,
       type: 'entity'
     }));
     
@@ -92,6 +93,7 @@ const searchAll = async (req, res) => {
       id: user.user_id.toString(),
       username: user.username,
       displayName: user.username,
+      profilePicture: user.profile_picture ? `http://localhost:3000/api/photos/file/${user.profile_picture}` : null,
       type: 'user'
     }));
     
