@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Star, Calendar, Plus, ArrowLeft, Loader, Trash2 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { useAdmin } from '../../context/AdminContext';
 import CreateReview from './CreateReview';
 import VoteComponent from '../common/VoteComponent';
 import PhotoGallery from '../common/PhotoGallery';
@@ -30,6 +31,7 @@ interface EntityDetailData {
 const EntityDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
+  const { isAdminMode } = useAdmin();
   const navigate = useNavigate();
   const [showCreateReview, setShowCreateReview] = useState(false);
   const [activeTab, setActiveTab] = useState<'reviews' | 'photos' | 'info'>('reviews');
@@ -59,11 +61,18 @@ const EntityDetail: React.FC = () => {
     if (!confirmed) return;
     
     try {
+      // Prepare headers with admin mode support
+      const headers: Record<string, string> = {
+        'user-id': user.id
+      };
+
+      if (isAdminMode) {
+        headers['x-admin-mode'] = 'true';
+      }
+
       const response = await fetch(`http://localhost:3000/api/reviews/${reviewId}`, {
         method: 'DELETE',
-        headers: {
-          'user-id': user.id
-        }
+        headers
       });
 
       if (!response.ok) {
@@ -78,6 +87,51 @@ const EntityDetail: React.FC = () => {
     } catch (error) {
       console.error('Error deleting review:', error);
       alert('Failed to delete review. Please try again.');
+    }
+  };
+
+  // Handle deleting entity (admin only)
+  const handleDeleteEntity = async () => {
+    // Check if user is admin (either through admin mode or direct admin status)
+    const isUserAdmin = isAdminMode || user?.isAdmin === true || user?.role === 'admin';
+    
+    if (!user || !entity || !isUserAdmin) {
+      console.log('Delete blocked - User:', !!user, 'Entity:', !!entity, 'IsAdmin:', isUserAdmin);
+      return;
+    }
+    
+    console.log('Starting entity deletion process...');
+    
+    const confirmed = window.confirm(`Are you sure you want to delete the entity "${entity.name || entity.item_name}"? This action cannot be undone and will delete all associated reviews, photos, and data.`);
+    if (!confirmed) return;
+    
+    // Double confirmation for such a destructive action
+    const doubleConfirmed = window.confirm('This will permanently delete the entity and all its data. Are you absolutely sure?');
+    if (!doubleConfirmed) return;
+    
+    try {
+      const headers: Record<string, string> = {
+        'user-id': user.id,
+        'x-admin-mode': 'true'
+      };
+
+      console.log('Sending delete request for entity:', entity.id || entity.item_id);
+
+      const response = await fetch(`http://localhost:3000/api/entities/${entity.id || entity.item_id}`, {
+        method: 'DELETE',
+        headers
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete entity');
+      }
+
+      // Navigate back to entities list after successful deletion
+      navigate('/entities');
+      
+    } catch (error) {
+      console.error('Error deleting entity:', error);
+      alert('Failed to delete entity. Please try again.');
     }
   };
 
@@ -354,6 +408,11 @@ const EntityDetail: React.FC = () => {
 
               {/* Action Buttons */}
               <div className="flex gap-4">
+                {/* Debug info - remove this after testing */}
+                <div className="text-xs text-gray-500 mb-2">
+                  Debug - Admin Mode: {isAdminMode ? 'true' : 'false'} | User Admin: {user?.isAdmin ? 'true' : 'false'} | User Role: {user?.role || 'none'}
+                </div>
+                
                 {user && !user?.isAdmin && user?.role !== 'admin' && (
                   <button
                     onClick={() => setShowCreateReview(true)}
@@ -361,6 +420,36 @@ const EntityDetail: React.FC = () => {
                   >
                     <Plus className="w-5 h-5 mr-2" />
                     Write Review
+                  </button>
+                )}
+                
+                {/* Admin Delete Button - URL-based admin mode */}
+                {isAdminMode && (
+                  <button
+                    onClick={handleDeleteEntity}
+                    className="flex items-center px-6 py-3 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition-all transform hover:scale-105"
+                  >
+                    <Trash2 className="w-5 h-5 mr-2" />
+                    Delete Entity (Admin Mode)
+                  </button>
+                )}
+                
+                {/* Direct admin check - always show for actual admins */}
+                {(user?.isAdmin === true || user?.role === 'admin') && (
+                  <button
+                    onClick={() => {
+                      console.log('Delete button clicked!');
+                      console.log('User:', user);
+                      console.log('Entity:', entity);
+                      console.log('IsAdminMode:', isAdminMode);
+                      console.log('User.isAdmin:', user?.isAdmin);
+                      console.log('User.role:', user?.role);
+                      handleDeleteEntity();
+                    }}
+                    className="flex items-center px-6 py-3 bg-red-500 text-white rounded-lg font-medium hover:bg-red-600 transition-all border-2 border-red-300"
+                  >
+                    <Trash2 className="w-5 h-5 mr-2" />
+                    Delete Entity (Direct Admin)
                   </button>
                 )}
               </div>
@@ -517,8 +606,8 @@ const EntityDetail: React.FC = () => {
                             className="flex items-center space-x-4 vote-component"
                           />
                           <div className="flex items-center space-x-4 relative">
-                            {/* Delete button for user's own reviews */}
-                            {(review.user_id === user?.id || review.userId === user?.id) && (
+                            {/* Delete button for user's own reviews or admin */}
+                            {((review.user_id === user?.id || review.userId === user?.id) || isAdminMode) && (
                               <button
                                 onClick={(e) => handleDeleteReview((review.review_id || review.id || index).toString(), e)}
                                 className="flex items-center gap-1 px-3 py-1 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors"

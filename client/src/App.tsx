@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { AppProvider } from './context/AppContext';
+import { AdminProvider } from './context/AdminContext';
 import Layout from './components/Layout/Layout';
 import Home from './components/Home/Home';
 import Login from './components/Auth/Login';
@@ -28,8 +29,9 @@ function App() {
     <Router>
       <AuthProvider>
         <AppProvider>
-          <Routes>
-            <Route path="/" element={<Layout />}>
+          <AdminProvider>
+            <Routes>
+              <Route path="/" element={<Layout />}>
               <Route index element={<Home />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
@@ -85,10 +87,11 @@ function App() {
               <Route path="/admin/entity-requests" element={<EntityRequestsAdmin />} />
             </Route>
           </Routes>
-        </AppProvider>
-      </AuthProvider>
-    </Router>
-  );
+        </AdminProvider>
+      </AppProvider>
+    </AuthProvider>
+  </Router>
+);
 }
 
 export default App;

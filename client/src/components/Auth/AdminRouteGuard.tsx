@@ -1,5 +1,5 @@
 import React from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 
 interface AdminRouteGuardProps {
@@ -12,9 +12,14 @@ const AdminRouteGuard: React.FC<AdminRouteGuardProps> = ({
   redirectTo = '/' 
 }) => {
   const { user } = useAuth();
+  const location = useLocation();
 
-  // If user is admin, redirect them away from this route
-  if (user?.isAdmin || user?.role === 'admin') {
+  // Check if admin mode is enabled via URL parameter
+  const urlParams = new URLSearchParams(location.search);
+  const isAdminMode = urlParams.get('admin') === 'true';
+
+  // If user is admin and NOT in admin mode, redirect them away from this route
+  if ((user?.isAdmin || user?.role === 'admin') && !isAdminMode) {
     return <Navigate to={redirectTo} replace />;
   }
 

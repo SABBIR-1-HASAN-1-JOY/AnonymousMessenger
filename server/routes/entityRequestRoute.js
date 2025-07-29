@@ -12,6 +12,8 @@ const {
   getEntityRequestStats
 } = require('../controllers/entityRequestControllers');
 
+const { uploadSinglePhoto } = require('../middleware/photoUpload');
+
 // Create a new entity request
 router.post('/', createEntityRequest);
 
@@ -28,7 +30,7 @@ router.get('/user/:userId', getEntityRequestsByUser);
 router.get('/:requestId', getEntityRequestById);
 
 // Approve entity request (admin only)
-router.put('/:requestId/approve', approveEntityRequest);
+router.put('/:requestId/approve', uploadSinglePhoto, approveEntityRequest);
 
 // Reject entity request (admin only)
 router.put('/:requestId/reject', rejectEntityRequest);

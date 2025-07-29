@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { Calendar, ArrowLeft, FileText, Trash2, Edit3, Save, X } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useApp } from '../../context/AppContext';
+import { useAdmin } from '../../context/AdminContext';
 import CommentComponent from '../common/CommentComponent';
 import VoteComponent from '../common/VoteComponent';
 import ReportButton from '../Reports/ReportButton';
@@ -39,6 +40,7 @@ const RateMyWorkDetail: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { posts } = useApp(); // Use posts array for rate-my-work posts
+  const { isAdminMode } = useAdmin();
   const [work, setWork] = useState<WorkItem | null>(null);
   const [loading, setLoading] = useState(true);
   const [userRatings, setUserRatings] = useState<{[key: string]: number}>({});
@@ -53,7 +55,7 @@ const RateMyWorkDetail: React.FC = () => {
     
     try {
       // Try to get detailed post data including ratings
-      const response = await fetch(`http://localhost:3000/api/posts/${id}`);
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/posts/${id}`);
       if (response.ok) {
         const data = await response.json();
         console.log('Fetched post data:', data);
@@ -128,7 +130,7 @@ const RateMyWorkDetail: React.FC = () => {
     try {
       console.log('Rating post:', postId, 'with rating:', rating);
       
-      const response = await fetch(`http://localhost:3000/api/posts/${postId}/rate`, {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/posts/${postId}/rate`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -189,11 +191,14 @@ const RateMyWorkDetail: React.FC = () => {
     if (!confirmed) return;
     
     try {
-      const response = await fetch(`http://localhost:3000/api/posts/${work.id}`, {
+      const headers: Record<string, string> = {
+        'user-id': user.id,
+        ...(isAdminMode && { 'x-admin-mode': 'true' })
+      };
+
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/posts/${work.id}`, {
         method: 'DELETE',
-        headers: {
-          'user-id': user.id
-        }
+        headers
       });
 
       if (!response.ok) {
@@ -226,7 +231,7 @@ const RateMyWorkDetail: React.FC = () => {
     
     setSaving(true);
     try {
-      const response = await fetch(`http://localhost:3000/api/posts/${work.id}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/posts/${work.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -351,15 +356,19 @@ const RateMyWorkDetail: React.FC = () => {
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                {work.userId === user?.id && (
+                {(work.userId === user?.id || isAdminMode) && (
                   <>
-                    <button
-                      onClick={handleEditStart}
-                      className="flex items-center gap-1 px-3 py-1 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-md transition-colors"
-                    >
-                      <Edit3 className="w-4 h-4" />
-                      Edit
-                    </button>
+                    {/* Edit button - only for owners, not admins */}
+                    {work.userId === user?.id && !isAdminMode && (
+                      <button
+                        onClick={handleEditStart}
+                        className="flex items-center gap-1 px-3 py-1 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-md transition-colors"
+                      >
+                        <Edit3 className="w-4 h-4" />
+                        Edit
+                      </button>
+                    )}
+                    {/* Delete button - for both owners and admins */}
                     <button
                       onClick={handleDelete}
                       className="flex items-center gap-1 px-3 py-1 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors"
@@ -533,6 +542,7 @@ const RateMyWorkDetail: React.FC = () => {
               <CommentComponent
                 entityType="post"
                 entityId={parseInt((work.id || '0').toString())}
+                isAdminMode={isAdminMode}
               />
             </div>
           </div>

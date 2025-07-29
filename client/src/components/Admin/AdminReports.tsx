@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Flag, Eye, Check, X, Trash2, AlertTriangle, ChevronDown, ChevronUp, ExternalLink } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 interface Report {
   report_id: number;
@@ -54,6 +55,7 @@ interface ReportedContent {
 
 const AdminReports: React.FC = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [reports, setReports] = useState<Report[]>([]);
   const [stats, setStats] = useState<ReportStats | null>(null);
   const [selectedStatus, setSelectedStatus] = useState<string>('pending');
@@ -71,8 +73,8 @@ const AdminReports: React.FC = () => {
     try {
       setLoading(true);
       const endpoint = selectedStatus === 'all' 
-        ? 'http://localhost:3000/api/admin/reports'
-        : `http://localhost:3000/api/admin/reports/status/${selectedStatus}`;
+        ? `${import.meta.env.VITE_API_BASE_URL}/api/admin/reports`
+        : `${import.meta.env.VITE_API_BASE_URL}/api/admin/reports/status/${selectedStatus}`;
         
       const response = await fetch(endpoint);
       
@@ -93,7 +95,7 @@ const AdminReports: React.FC = () => {
 
   const fetchStats = async () => {
     try {
-      const response = await fetch('http://localhost:3000/api/admin/reports-stats');
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/admin/reports-stats`);
       
       const data = await response.json();
       
@@ -107,7 +109,7 @@ const AdminReports: React.FC = () => {
 
   const updateReportStatus = async (reportId: number, newStatus: string) => {
     try {
-      const response = await fetch(`http://localhost:3000/api/admin/reports/${reportId}/status`, {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/admin/reports/${reportId}/status`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'
@@ -133,7 +135,7 @@ const AdminReports: React.FC = () => {
   const fetchReportedContent = async (reportedItemType: string, reportedItemId: number) => {
     try {
       // Use admin content endpoint first
-      let endpoint = `http://localhost:3000/api/admin/content/${reportedItemType}/${reportedItemId}?adminId=${user?.id}`;
+      let endpoint = `${import.meta.env.VITE_API_BASE_URL}/api/admin/content/${reportedItemType}/${reportedItemId}?adminId=${user?.id}`;
       
       let response = await fetch(endpoint);
       let data = await response.json();
@@ -149,7 +151,7 @@ const AdminReports: React.FC = () => {
       switch (reportedItemType) {
         case 'post':
           // Try to get post from posts endpoint - may need to be implemented
-          endpoint = `http://localhost:3000/api/posts`;
+          endpoint = `${import.meta.env.VITE_API_BASE_URL}/api/posts`;
           response = await fetch(endpoint);
           data = await response.json();
           if (data.success) {
@@ -164,7 +166,7 @@ const AdminReports: React.FC = () => {
           break;
           
         case 'comment':
-          endpoint = `http://localhost:3000/api/comments/${reportedItemId}`;
+          endpoint = `${import.meta.env.VITE_API_BASE_URL}/api/comments/${reportedItemId}`;
           response = await fetch(endpoint);
           data = await response.json();
           if (data.success && data.comment) {
@@ -177,7 +179,7 @@ const AdminReports: React.FC = () => {
           
         case 'review':
           // Try to get review from reviews endpoint
-          endpoint = `http://localhost:3000/api/reviews`;
+          endpoint = `${import.meta.env.VITE_API_BASE_URL}/api/reviews`;
           response = await fetch(endpoint);
           data = await response.json();
           if (data.success) {
@@ -200,6 +202,56 @@ const AdminReports: React.FC = () => {
     } catch (error) {
       console.error('Error fetching reported content:', error);
       return null;
+    }
+  };
+
+  const viewContentDetails = async (reportedItemType: string, reportedItemId: number) => {
+    // Navigate to the corresponding content page with admin mode enabled
+    const adminParam = '?admin=true';
+    
+    switch (reportedItemType) {
+      case 'post':
+        navigate(`/posts/${reportedItemId}${adminParam}`);
+        break;
+      case 'review':
+        navigate(`/reviews/${reportedItemId}${adminParam}`);
+        break;
+      case 'comment':
+        // For comments, we need to navigate to the parent post/review
+        await fetchCommentParentAndNavigate(reportedItemId);
+        break;
+      default:
+        console.error('Unknown content type:', reportedItemType);
+        alert('Unknown content type');
+    }
+  };
+
+  const fetchCommentParentAndNavigate = async (commentId: number) => {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/comments/${commentId}`);
+      const data = await response.json();
+      
+      if (data.success && data.comment) {
+        const comment = data.comment;
+        const adminParam = '?admin=true';
+        
+        // Navigate to the parent entity based on the comment's entity_type
+        if (comment.entity_type === 'post') {
+          navigate(`/posts/${comment.entity_id}${adminParam}#comment-${commentId}`);
+        } else if (comment.entity_type === 'review') {
+          navigate(`/reviews/${comment.entity_id}${adminParam}#comment-${commentId}`);
+        } else if (comment.entity_type === 'rate-my-work') {
+          navigate(`/rate-my-work/${comment.entity_id}${adminParam}#comment-${commentId}`);
+        } else {
+          // Default fallback - navigate to a general comment view or entity
+          navigate(`/posts/${comment.entity_id}${adminParam}#comment-${commentId}`);
+        }
+      } else {
+        alert('Could not load comment details');
+      }
+    } catch (error) {
+      console.error('Error fetching comment details:', error);
+      alert('Error loading comment details');
     }
   };
 
@@ -231,7 +283,7 @@ const AdminReports: React.FC = () => {
     }
     
     try {
-      const response = await fetch(`http://localhost:3000/api/admin/reports/${reportId}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/admin/reports/${reportId}`, {
         method: 'DELETE'
       });
       
@@ -470,22 +522,32 @@ const AdminReports: React.FC = () => {
                           {new Date(report.created_at).toLocaleTimeString()}
                         </div>
                         
-                        <button
-                          onClick={() => toggleReportExpansion(report.report_id, report.reported_item_type, report.reported_item_id)}
-                          className="flex items-center text-sm text-blue-600 hover:text-blue-800 font-medium"
-                        >
-                          {expandedReports.has(report.report_id) ? (
-                            <>
-                              <ChevronUp className="w-4 h-4 mr-1" />
-                              Hide Content
-                            </>
-                          ) : (
-                            <>
-                              <ChevronDown className="w-4 h-4 mr-1" />
-                              View Content
-                            </>
-                          )}
-                        </button>
+                        <div className="flex items-center space-x-3">
+                          <button
+                            onClick={() => viewContentDetails(report.reported_item_type, report.reported_item_id)}
+                            className="flex items-center text-sm text-blue-600 hover:text-blue-800 font-medium"
+                          >
+                            <ExternalLink className="w-4 h-4 mr-1" />
+                            View Details
+                          </button>
+                          
+                          <button
+                            onClick={() => toggleReportExpansion(report.report_id, report.reported_item_type, report.reported_item_id)}
+                            className="flex items-center text-sm text-gray-600 hover:text-gray-800"
+                          >
+                            {expandedReports.has(report.report_id) ? (
+                              <>
+                                <ChevronUp className="w-4 h-4 mr-1" />
+                                Hide Preview
+                              </>
+                            ) : (
+                              <>
+                                <ChevronDown className="w-4 h-4 mr-1" />
+                                Show Preview
+                              </>
+                            )}
+                          </button>
+                        </div>
                       </div>
                       
                       {/* Expanded content */}

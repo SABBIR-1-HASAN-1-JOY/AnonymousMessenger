@@ -44,7 +44,7 @@ const VoteComponent: React.FC<VoteComponentProps> = ({
 
   const fetchVoteData = async () => {
     try {
-      const response = await fetch(`http://localhost:3000/api/votes/counts/${entityType}/${entityId}`);
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/votes/counts/${entityType}/${entityId}`);
       if (response.ok) {
         const data = await response.json();
         setVoteData(data);
@@ -63,7 +63,7 @@ const VoteComponent: React.FC<VoteComponentProps> = ({
     
     try {
       const response = await fetch(
-        `http://localhost:3000/api/votes/user/${entityType}/${entityId}`,
+        `${import.meta.env.VITE_API_BASE_URL}/api/votes/user/${entityType}/${entityId}`,
         {
           headers: {
             'user-id': user.id.toString()
@@ -97,7 +97,7 @@ const VoteComponent: React.FC<VoteComponentProps> = ({
 
     setLoading(true);
     try {
-      const response = await fetch('http://localhost:3000/api/votes/vote', {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/votes/vote`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -148,7 +148,52 @@ const getEntityWithReviews = async (req, res) => {
 };
 
 
+// Controller to delete an entity (admin only)
+const deleteEntity = async (req, res) => {
+  try {
+    const { entityId } = req.params;
+    const userId = req.headers['user-id'];
+    const isAdminMode = req.headers['x-admin-mode'] === 'true';
+
+    console.log('=== DELETE ENTITY ENDPOINT HIT ===');
+    console.log('Entity ID:', entityId);
+    console.log('User ID:', userId);
+    console.log('Admin Mode:', isAdminMode);
+
+    if (!userId) {
+      return res.status(401).json({ error: 'User ID is required' });
+    }
+
+    if (!isAdminMode) {
+      return res.status(403).json({ error: 'Admin access required to delete entities' });
+    }
+
+    // Check if entity exists
+    const entityCheck = await require('../config/db.js').query(
+      'SELECT item_id FROM reviewable_entity WHERE item_id = $1',
+      [entityId]
+    );
+
+    if (entityCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'Entity not found' });
+    }
+
+    // Delete the entity (this should cascade delete related data if properly set up)
+    await require('../config/db.js').query(
+      'DELETE FROM reviewable_entity WHERE item_id = $1',
+      [entityId]
+    );
+
+    console.log('Entity deleted successfully:', entityId);
+    res.status(200).json({ message: 'Entity deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting entity:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
 module.exports = {
   getEntityWithReviews,
-  createEntity
+  createEntity,
+  deleteEntity
 };

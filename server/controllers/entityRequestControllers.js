@@ -157,9 +157,11 @@ const approveEntityRequest = async (req, res) => {
     console.log('=== APPROVE ENTITY REQUEST CONTROLLER ===');
     
     const { requestId } = req.params;
-    const { adminId, adminNotes } = req.body;
+    const { adminId } = req.body;
     
     console.log('Approving request:', requestId, 'by admin:', adminId);
+    console.log('Request files:', req.files);
+    console.log('Request file:', req.file);
 
     if (!adminId) {
       return res.status(400).json({
@@ -167,10 +169,18 @@ const approveEntityRequest = async (req, res) => {
       });
     }
 
+    // Handle photo upload if provided
+    let photoName = null;
+    if (req.file) {
+      photoName = req.file.filename;
+      console.log('Photo uploaded:', photoName);
+    }
+
     const result = await entityRequestServices.approveEntityRequest(
       parseInt(requestId), 
       parseInt(adminId), 
-      adminNotes
+      null, // admin notes removed
+      photoName
     );
     
     if (!result.success) {
@@ -203,7 +213,7 @@ const rejectEntityRequest = async (req, res) => {
     console.log('=== REJECT ENTITY REQUEST CONTROLLER ===');
     
     const { requestId } = req.params;
-    const { adminId, adminNotes } = req.body;
+    const { adminId } = req.body;
     
     console.log('Rejecting request:', requestId, 'by admin:', adminId);
 
@@ -216,7 +226,7 @@ const rejectEntityRequest = async (req, res) => {
     const result = await entityRequestServices.rejectEntityRequest(
       parseInt(requestId), 
       parseInt(adminId), 
-      adminNotes
+      null // admin notes removed
     );
     
     if (!result.success) {

@@ -55,6 +55,27 @@ const getReviewsByEntityId = async (entityId) => {
 
 // Get all entities
 
+// Get category_id by category name
+const getCategoryIdByName = async (categoryName) => {
+  try {
+    console.log('Getting category_id for category:', categoryName);
+    const result = await pool.query(
+      'SELECT category_id FROM category WHERE category_name = $1',
+      [categoryName]
+    );
+    
+    if (result.rows.length === 0) {
+      throw new Error(`Category '${categoryName}' not found`);
+    }
+    
+    console.log('Found category_id:', result.rows[0].category_id);
+    return result.rows[0].category_id;
+  } catch (error) {
+    console.error('Error in getCategoryIdByName:', error);
+    throw error;
+  }
+};
+
 // Insert new entity into reviewable_entity
 const insertEntity = async ({ category_id, item_name, owner_id, description, picture }) => {
   // make the owner_id default to 1
@@ -77,5 +98,6 @@ const insertEntity = async ({ category_id, item_name, owner_id, description, pic
 module.exports = {
   getEntityById,
   getReviewsByEntityId,
-  insertEntity
+  insertEntity,
+  getCategoryIdByName
 };

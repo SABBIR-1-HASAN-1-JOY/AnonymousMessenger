@@ -90,7 +90,7 @@ const fetchEntityRequestById = async (requestId) => {
 };
 
 // Service to approve entity request and create entity
-const approveEntityRequest = async (requestId, adminId, adminNotes = null) => {
+const approveEntityRequest = async (requestId, adminId, adminNotes = null, photoName = null) => {
   try {
     console.log('Approving entity request:', requestId);
     
@@ -109,7 +109,8 @@ const approveEntityRequest = async (requestId, adminId, adminNotes = null) => {
       description: request.description,
       category: request.category,
       sector: request.sector,
-      picture: request.picture
+      picture: photoName || request.picture, // Use admin uploaded photo or original
+      owner_id: request.user_id  // Set the requester as the owner
     };
 
     const newEntity = await createEntity(entityData);

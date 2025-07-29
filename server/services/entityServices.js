@@ -1,5 +1,5 @@
 // services/entityServices.js
-const { getEntityById, getReviewsByEntityId, insertEntity } = require('../queries/entityQueries');
+const { getEntityById, getReviewsByEntityId, insertEntity, getCategoryIdByName } = require('../queries/entityQueries');
 
 const getEntityDetails = async (entityId) => {
   try {
@@ -32,9 +32,19 @@ module.exports = {
   // Service to create a new entity
   createEntity: async (entityData) => {
     try {
+      // If category is provided as a name, convert it to category_id
+      if (entityData.category && !entityData.category_id) {
+        console.log('Converting category name to category_id:', entityData.category);
+        const categoryId = await getCategoryIdByName(entityData.category);
+        entityData.category_id = categoryId;
+        delete entityData.category; // Remove the category name since we now have category_id
+      }
+      
+      console.log('Creating entity with data:', entityData);
       const newEntity = await insertEntity(entityData);
       return newEntity;
     } catch (error) {
+      console.error('Error in createEntity service:', error);
       throw error;
     }
   }

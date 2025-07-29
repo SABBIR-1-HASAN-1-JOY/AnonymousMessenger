@@ -6,6 +6,7 @@ const {
   fetchReviewsByItemId,
   fetchReviewById
 } = require('../services/reviewServices');
+const pool = require('../config/db.js');
 
 const createReview = async (req, res) => {
   try {
@@ -257,9 +258,18 @@ const getReviewById = async (req, res) => {
 
 // Delete a review
 const deleteReview = async (req, res) => {
+  const fs = require('fs').promises;
+  const path = require('path');
+  
   try {
     const reviewId = req.params.reviewId;
     const userId = req.headers['user-id'];
+    const isAdminMode = req.headers['x-admin-mode'] === 'true';
+    
+    console.log('=== DELETE REVIEW ENDPOINT HIT ===');
+    console.log('Review ID:', reviewId);
+    console.log('User ID:', userId);
+    console.log('Admin Mode:', isAdminMode);
     
     if (!userId) {
       return res.status(401).json({ error: 'User ID not provided' });
@@ -278,12 +288,24 @@ const deleteReview = async (req, res) => {
       return res.status(404).json({ error: 'Review not found' });
     }
     
-    // Check if the user owns the review
-    if (checkResult.rows[0].user_id !== parseInt(userId)) {
+    // Check if the user owns the review OR is in admin mode
+    if (checkResult.rows[0].user_id !== parseInt(userId) && !isAdminMode) {
       return res.status(403).json({ error: 'Unauthorized to delete this review' });
     }
     
-    // Delete the review
+    // Get all photos related to this review before deletion
+    const photosQuery = `
+      SELECT photo_id, photo_name 
+      FROM photos 
+      WHERE type = 'reviews' AND source_id = $1
+    `;
+    
+    const photosResult = await pool.query(photosQuery, [reviewId]);
+    const reviewPhotos = photosResult.rows;
+    
+    console.log(`Found ${reviewPhotos.length} photos to delete for review ${reviewId}`);
+    
+    // Delete the review (trigger will handle photo database deletion)
     const deleteQuery = `
       DELETE FROM review 
       WHERE review_id = $1 
@@ -296,10 +318,25 @@ const deleteReview = async (req, res) => {
       return res.status(404).json({ error: 'Review not found' });
     }
     
+    // Delete physical files after database deletion
+    for (const photo of reviewPhotos) {
+      try {
+        const filePath = path.join(__dirname, '..', 'uploads', photo.photo_name);
+        await fs.unlink(filePath);
+        console.log(`Deleted photo file: ${photo.photo_name}`);
+      } catch (fileError) {
+        console.error(`Failed to delete photo file ${photo.photo_name}:`, fileError.message);
+        // Continue with other files even if one fails
+      }
+    }
+    
+    console.log(`Review ${reviewId} deleted successfully with ${reviewPhotos.length} photos`);
+    
     res.status(200).json({
       success: true,
       message: 'Review deleted successfully',
-      reviewId: result.rows[0].review_id
+      reviewId: result.rows[0].review_id,
+      deletedPhotos: reviewPhotos.length
     });
   } catch (error) {
     console.error('Error deleting review:', error);

@@ -1,13 +1,15 @@
 const express = require('express');
 const router = express.Router();
 const { validateEntityIdParam } = require('../validators/entityValidators');
-const { getEntityWithReviews, createEntity } = require('../controllers/entityControllers');
+const { getEntityWithReviews, createEntity, deleteEntity } = require('../controllers/entityControllers');
 const pool = require('../config/db.js');
 
 // Get entity details
 router.get('/:entityId/details', validateEntityIdParam, getEntityWithReviews);
 // Create a new entity
 router.post('/create', createEntity);
+// Delete an entity (admin only)
+router.delete('/:entityId', validateEntityIdParam, deleteEntity);
 
 router.get('/', async (req, res) => {
     try {

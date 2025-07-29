@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { Calendar, ArrowLeft, Star, User, Edit3, Save, X, Trash2 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useApp } from '../../context/AppContext';
+import { useAdmin } from '../../context/AdminContext';
 import CommentComponent from '../common/CommentComponent';
 import VoteComponent from '../common/VoteComponent';
 import ReportButton from '../Reports/ReportButton';
@@ -12,6 +13,7 @@ const ReviewDetail: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { reviews, entities } = useApp();
+  const { isAdminMode } = useAdmin();
   const [review, setReview] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
@@ -123,11 +125,14 @@ const ReviewDetail: React.FC = () => {
     if (!confirmed) return;
     
     try {
-      const response = await fetch(`http://localhost:3000/api/reviews/${review.id}`, {
+      const headers: Record<string, string> = {
+        'user-id': user.id,
+        ...(isAdminMode && { 'x-admin-mode': 'true' })
+      };
+
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/reviews/${review.id}`, {
         method: 'DELETE',
-        headers: {
-          'user-id': user.id
-        }
+        headers
       });
 
       if (!response.ok) {
@@ -273,15 +278,19 @@ const ReviewDetail: React.FC = () => {
                 {renderStars(review.rating || 0)}
               </div>
               <div className="flex items-center gap-2">
-                {review.userId === user?.id && (
+                {(review.userId === user?.id || isAdminMode) && (
                   <>
-                    <button
-                      onClick={handleEditStart}
-                      className="flex items-center gap-1 px-3 py-1 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-md transition-colors"
-                    >
-                      <Edit3 className="w-4 h-4" />
-                      Edit
-                    </button>
+                    {/* Edit button - only for owners, not admins */}
+                    {review.userId === user?.id && !isAdminMode && (
+                      <button
+                        onClick={handleEditStart}
+                        className="flex items-center gap-1 px-3 py-1 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-md transition-colors"
+                      >
+                        <Edit3 className="w-4 h-4" />
+                        Edit
+                      </button>
+                    )}
+                    {/* Delete button - for both owners and admins */}
                     <button
                       onClick={handleDelete}
                       className="flex items-center gap-1 px-3 py-1 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors"
@@ -414,6 +423,7 @@ const ReviewDetail: React.FC = () => {
               <CommentComponent
                 entityType="review"
                 entityId={parseInt(review.id.toString())}
+                isAdminMode={isAdminMode}
               />
             </div>
           </div>

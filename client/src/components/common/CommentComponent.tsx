@@ -23,6 +23,7 @@ interface CommentComponentProps {
   className?: string;
   autoExpand?: boolean;
   highlightUserId?: string;
+  isAdminMode?: boolean;
 }
 
 const CommentComponent: React.FC<CommentComponentProps> = ({
@@ -30,7 +31,8 @@ const CommentComponent: React.FC<CommentComponentProps> = ({
   entityId,
   className = '',
   autoExpand = false,
-  highlightUserId
+  highlightUserId,
+  isAdminMode = false
 }) => {
   const { user } = useAuth();
   const [comments, setComments] = useState<Comment[]>([]);
@@ -198,14 +200,21 @@ const CommentComponent: React.FC<CommentComponentProps> = ({
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'user-id': user.id.toString()
         },
         body: JSON.stringify({
           commentText: editText.trim()
         }),
       });
 
-      if (response.ok) {
+      console.log('Update response status:', response.status);
+      console.log('Update response ok:', response.ok);
+      
+      const responseData = await response.json();
+      console.log('Update response data:', responseData);
+
+      if (response.ok && responseData.success) {
         // Update the comment in the local state
         setComments(prev => prev.map(comment => {
           if (comment.comment_id === commentId) {
@@ -226,9 +235,14 @@ const CommentComponent: React.FC<CommentComponentProps> = ({
         }));
         setEditingCommentId(null);
         setEditText('');
+        console.log('Comment updated successfully in frontend');
       } else {
-        console.error('Failed to update comment');
-        alert('Failed to update comment');
+        console.error('Failed to update comment - Response not ok or success false:', {
+          status: response.status,
+          ok: response.ok,
+          responseData
+        });
+        alert(`Failed to update comment: ${responseData.error || 'Unknown error'}`);
       }
     } catch (error) {
       console.error('Error updating comment:', error);
@@ -239,7 +253,24 @@ const CommentComponent: React.FC<CommentComponentProps> = ({
   const handleDeleteComment = async (commentId: number, commentText: string) => {
     if (!user) return;
 
-    // Confirm deletion
+    // Find the comment in all levels (including nested replies)
+    const findComment = (commentList: Comment[], targetId: number): Comment | null => {
+      for (const comment of commentList) {
+        if (comment.comment_id === targetId) {
+          return comment;
+        }
+        if (comment.replies && comment.replies.length > 0) {
+          const found = findComment(comment.replies, targetId);
+          if (found) return found;
+        }
+      }
+      return null;
+    };
+
+    const targetComment = findComment(comments, commentId);
+    const isOwner = targetComment?.user_id === parseInt(user.id.toString());
+    
+    // Unified confirmation message
     const confirmMessage = `Are you sure you want to delete this comment? This will also delete all replies to this comment.
 
 Comment: "${commentText.substring(0, 100)}${commentText.length > 100 ? '...' : ''}"`;
@@ -249,18 +280,40 @@ Comment: "${commentText.substring(0, 100)}${commentText.length > 100 ? '...' : '
     if (!confirmDelete) return;
 
     try {
+      console.log('Deleting comment:', { 
+        commentId, 
+        isAdminMode, 
+        isOwner, 
+        userId: user.id,
+        hasToken: !!localStorage.getItem('token'),
+        token: localStorage.getItem('token')?.substring(0, 20) + '...' // Log partial token for debugging
+      });
+      
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        'user-id': user.id.toString(),
+        ...(isAdminMode && { 'x-admin-mode': 'true' })
+      };
+
+      // Only add Authorization header if token exists
+      const token = localStorage.getItem('token');
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      console.log('Request headers:', headers);
+      
       const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/comments/${commentId}`, {
         method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          'user-id': user.id.toString()
-        }
+        headers
       });
 
+      console.log('Delete response status:', response.status);
+      console.log('Delete response headers:', Object.fromEntries(response.headers.entries()));
+      
       if (response.ok) {
         const result = await response.json();
-        console.log('Comment deleted:', result);
+        console.log('Comment deleted successfully:', result);
         
         // Remove the comment and its replies from local state
         setComments(prev => {
@@ -281,13 +334,17 @@ Comment: "${commentText.substring(0, 100)}${commentText.length > 100 ? '...' : '
         // Show success message
         alert(`Comment deleted successfully. ${result.totalDeleted} total items deleted (comment + replies).`);
       } else {
-        const errorData = await response.json();
-        console.error('Failed to delete comment:', errorData);
-        alert(errorData.error || 'Failed to delete comment');
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        console.error('Failed to delete comment:', { 
+          status: response.status, 
+          statusText: response.statusText, 
+          errorData 
+        });
+        alert(`Failed to delete comment: ${errorData.error || response.statusText || 'Unknown error'}`);
       }
     } catch (error) {
       console.error('Error deleting comment:', error);
-      alert('Error deleting comment');
+      alert(`Error deleting comment: ${error instanceof Error ? error.message : 'Network error'}`);
     }
   };
 
@@ -375,8 +432,8 @@ Comment: "${commentText.substring(0, 100)}${commentText.length > 100 ? '...' : '
                 <span className="font-semibold text-sm text-gray-900">{comment.username}</span>
                 <div className="flex items-center gap-2">
                   <span className="text-xs text-gray-500">{formatTimeAgo(comment.created_at)}</span>
-                  {/* Edit button for comment owner */}
-                  {user && comment.user_id === parseInt(user.id.toString()) && (
+                  {/* Edit button for comment owner only (not for admin mode) */}
+                  {user && comment.user_id === parseInt(user.id.toString()) && !isAdminMode && (
                     <button
                       onClick={() => handleEditComment(comment.comment_id, comment.comment_text)}
                       className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1"
@@ -385,8 +442,8 @@ Comment: "${commentText.substring(0, 100)}${commentText.length > 100 ? '...' : '
                       Edit
                     </button>
                   )}
-                  {/* Delete button for comment owner */}
-                  {user && comment.user_id === parseInt(user.id.toString()) && (
+                  {/* Delete button for comment owner or admin */}
+                  {user && (comment.user_id === parseInt(user.id.toString()) || isAdminMode) && (
                     <button
                       onClick={() => handleDeleteComment(comment.comment_id, comment.comment_text)}
                       className="text-xs text-red-600 hover:text-red-700 flex items-center gap-1"
@@ -431,7 +488,7 @@ Comment: "${commentText.substring(0, 100)}${commentText.length > 100 ? '...' : '
           <div className="flex items-center justify-between mt-2">
             <div className="flex items-center space-x-3">
               {/* Only show reply button for non-admin users */}
-              {user && !user?.isAdmin && user?.role !== 'admin' && (
+              {user && !user?.isAdmin && user?.role !== 'admin' && !isAdminMode && (
                 <button
                   onClick={() => setReplyTo(replyTo === comment.comment_id ? null : comment.comment_id)}
                   className="text-gray-500 hover:text-blue-600 text-xs font-medium flex items-center"
@@ -508,7 +565,7 @@ Comment: "${commentText.substring(0, 100)}${commentText.length > 100 ? '...' : '
       {showComments && (
         <div className={`space-y-4 ${className?.includes('inline-flex') ? 'absolute top-8 right-0 bg-white border border-gray-200 rounded-lg shadow-lg p-4 w-96 z-20' : ''}`}>
           {/* Add comment form - only for non-admin users */}
-          {user && !user?.isAdmin && user?.role !== 'admin' && (
+          {user && !user?.isAdmin && user?.role !== 'admin' && !isAdminMode && (
             <form onSubmit={handleSubmitComment} className="mb-6">
               <div className="flex space-x-3">
                 <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-teal-500 rounded-full flex items-center justify-center flex-shrink-0">

@@ -41,7 +41,7 @@ app.use(cors({
   origin: ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:4173'],   // allow your frontend
   credentials: true,   // if you are using cookies or auth tokens
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'user-id']
+  allowedHeaders: ['Content-Type', 'Authorization', 'user-id', 'x-admin-mode']
 }));
 app.use(express.json());
 

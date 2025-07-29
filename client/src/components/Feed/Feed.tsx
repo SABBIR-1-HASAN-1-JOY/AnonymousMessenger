@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useParams, useLocation, useNavigate } from 'react-router-dom';
 import { MessageCircle, Star, Calendar, User, Trash2 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
@@ -102,6 +102,37 @@ const Feed: React.FC = () => {
     }
   }, [targetContentType, targetContentId, posts, reviews, location.hash]);
 
+  // Refresh data when navigating back to feed (to catch deletions from detail pages)
+  useEffect(() => {
+    const refreshFeedData = async () => {
+      if (!user) return;
+      
+      try {
+        // Refresh posts
+        const postsResponse = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/posts`);
+        if (postsResponse.ok) {
+          const postsData = await postsResponse.json();
+          setPosts(postsData);
+        }
+        
+        // Refresh reviews (you may need to adjust this API endpoint based on your backend)
+        const reviewsResponse = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/reviews`);
+        if (reviewsResponse.ok) {
+          const reviewsData = await reviewsResponse.json();
+          // Update reviews in context if you have a setReviews function
+          console.log('Refreshed reviews:', reviewsData);
+        }
+      } catch (error) {
+        console.error('Error refreshing feed data:', error);
+      }
+    };
+
+    // Only refresh if we're coming back to the feed and have been away
+    if (location.pathname === '/feed' || location.pathname === '/') {
+      refreshFeedData();
+    }
+  }, [location.pathname, user, setPosts]);
+
   // Load user ratings from localStorage on component mount
   React.useEffect(() => {
     if (user?.id) {
@@ -123,7 +154,7 @@ const Feed: React.FC = () => {
       if (!user?.id) return;
       
       try {
-        const response = await fetch(`http://localhost:3000/api/users/${user.id}/following-users`);
+        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/users/${user.id}/following-users`);
         if (response.ok) {
           const followingData = await response.json();
           console.log('Fetched following users from server:', followingData);
@@ -212,7 +243,7 @@ const Feed: React.FC = () => {
     if (!confirmed) return;
     
     try {
-      const response = await fetch(`http://localhost:3000/api/posts/${postId}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/posts/${postId}`, {
         method: 'DELETE',
         headers: {
           'user-id': user.id
@@ -223,8 +254,11 @@ const Feed: React.FC = () => {
         throw new Error('Failed to delete post');
       }
 
-      // Remove the post from the posts context
+      // Immediately remove the post from the posts context
       setPosts(prevPosts => prevPosts.filter(post => post.id !== postId));
+      
+      // Show success message
+      alert('Post deleted successfully');
       
     } catch (error) {
       console.error('Error deleting post:', error);
@@ -240,7 +274,7 @@ const Feed: React.FC = () => {
     if (!confirmed) return;
     
     try {
-      const response = await fetch(`http://localhost:3000/api/reviews/${reviewId}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/reviews/${reviewId}`, {
         method: 'DELETE',
         headers: {
           'user-id': user.id
@@ -251,8 +285,8 @@ const Feed: React.FC = () => {
         throw new Error('Failed to delete review');
       }
 
-      // Remove the review from the context would need to be handled by parent component
-      // For now, we'll reload the page or navigate
+      // Force a page refresh to update the reviews list
+      // Since we don't have setReviews in context, this ensures the review is removed
       window.location.reload();
       
     } catch (error) {

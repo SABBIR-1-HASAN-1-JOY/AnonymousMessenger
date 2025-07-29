@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { Calendar, ArrowLeft, Edit3, Save, X, Trash2 } from 'lucide-react';
+import { Calendar, ArrowLeft, Edit3, Save, X, Trash2, Shield } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useApp } from '../../context/AppContext';
+import { useAdmin } from '../../context/AdminContext';
 import CommentComponent from '../common/CommentComponent';
 import VoteComponent from '../common/VoteComponent';
 import ReportButton from '../Reports/ReportButton';
@@ -12,6 +13,7 @@ const PostDetail: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { posts } = useApp();
+  const { isAdminMode } = useAdmin();
   const [post, setPost] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
@@ -35,7 +37,7 @@ const PostDetail: React.FC = () => {
         } else {
           // If not found in context, try to fetch it directly from the server
           try {
-            const response = await fetch(`http://localhost:3000/api/posts/${id}`);
+            const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/posts/${id}`);
             if (response.ok) {
               const postData = await response.json();
               setPost(postData);
@@ -111,11 +113,14 @@ const PostDetail: React.FC = () => {
     if (!confirmed) return;
     
     try {
+      const headers: Record<string, string> = {
+        'user-id': user.id,
+        ...(isAdminMode && { 'x-admin-mode': 'true' })
+      };
+
       const response = await fetch(`http://localhost:3000/api/posts/${post.id}`, {
         method: 'DELETE',
-        headers: {
-          'user-id': user.id
-        }
+        headers
       });
 
       if (!response.ok) {
@@ -242,15 +247,28 @@ const PostDetail: React.FC = () => {
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                {(post.user_id === user?.id || post.userId === user?.id) && (
+                {/* Admin Mode Indicator */}
+                {isAdminMode && (
+                  <div className="flex items-center gap-1 px-2 py-1 bg-red-100 text-red-800 rounded-md text-xs font-medium">
+                    <Shield className="w-3 h-3" />
+                    Admin View
+                  </div>
+                )}
+                
+                {/* Owner Actions (Edit/Delete) - Show if user owns the post OR if in admin mode */}
+                {((post.user_id === user?.id || post.userId === user?.id) || isAdminMode) && (
                   <>
-                    <button
-                      onClick={handleEditStart}
-                      className="flex items-center gap-1 px-3 py-1 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-md transition-colors"
-                    >
-                      <Edit3 className="w-4 h-4" />
-                      Edit
-                    </button>
+                    {/* Edit button - only for owners, not admins */}
+                    {(post.user_id === user?.id || post.userId === user?.id) && !isAdminMode && (
+                      <button
+                        onClick={handleEditStart}
+                        className="flex items-center gap-1 px-3 py-1 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-md transition-colors"
+                      >
+                        <Edit3 className="w-4 h-4" />
+                        Edit
+                      </button>
+                    )}
+                    {/* Delete button - for both owners and admins */}
                     <button
                       onClick={handleDelete}
                       className="flex items-center gap-1 px-3 py-1 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors"
@@ -260,11 +278,15 @@ const PostDetail: React.FC = () => {
                     </button>
                   </>
                 )}
-                <ReportButton
-                  itemType="post"
-                  itemId={parseInt((post.id).toString())}
-                  reportedUserId={parseInt((post.user_id || post.userId).toString())}
-                />
+                
+                {/* Report Button - Only show if not in admin mode */}
+                {!isAdminMode && (
+                  <ReportButton
+                    itemType="post"
+                    itemId={parseInt((post.id).toString())}
+                    reportedUserId={parseInt((post.user_id || post.userId).toString())}
+                  />
+                )}
               </div>
             </div>
           </div>
@@ -338,19 +360,22 @@ const PostDetail: React.FC = () => {
               )}
             </div>
 
-            {/* Vote Component */}
-            <div className="mt-6">
-              <VoteComponent
-                entityType="post"
-                entityId={parseInt((post.id).toString())}
-              />
-            </div>
+            {/* Vote Component - Hide in admin mode */}
+            {!isAdminMode && (
+              <div className="mt-6">
+                <VoteComponent
+                  entityType="post"
+                  entityId={parseInt((post.id).toString())}
+                />
+              </div>
+            )}
 
             {/* Comments Section */}
             <div className="mt-6">
               <CommentComponent
                 entityType="post"
                 entityId={parseInt((post.id).toString())}
+                isAdminMode={isAdminMode}
               />
             </div>
           </div>

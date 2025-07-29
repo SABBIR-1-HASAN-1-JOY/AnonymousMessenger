@@ -463,12 +463,14 @@ const deletePost = async (req, res) => {
     console.log('=== DELETE POST ENDPOINT HIT ===');
     const { postId } = req.params;
     const userId = req.headers['user-id'] || req.body.userId;
+    const isAdminMode = req.headers['x-admin-mode'] === 'true';
     
     console.log('Delete post request:', { 
       postId, 
       postIdType: typeof postId,
       userId, 
       userIdType: typeof userId,
+      isAdminMode,
       allHeaders: req.headers 
     });
     console.log('Request headers:', req.headers);
@@ -504,7 +506,7 @@ const deletePost = async (req, res) => {
     const post = postCheck.rows[0];
     console.log('Found post:', post);
     
-    // Check if user owns the post (only post owner can delete their own posts)
+    // Check if user owns the post OR is in admin mode
     console.log('🔒 Checking ownership:', { 
       postUserId: post.user_id, 
       postUserIdType: typeof post.user_id,
@@ -512,11 +514,13 @@ const deletePost = async (req, res) => {
       requestUserIdType: typeof userId,
       postUserIdString: post.user_id.toString(),
       requestUserIdString: userId.toString(),
-      areEqual: post.user_id.toString() === userId.toString()
+      areEqual: post.user_id.toString() === userId.toString(),
+      isAdminMode: isAdminMode,
+      canDelete: post.user_id.toString() === userId.toString() || isAdminMode
     });
     
-    if (post.user_id.toString() !== userId.toString()) {
-      console.log('❌ User does not own this post');
+    if (post.user_id.toString() !== userId.toString() && !isAdminMode) {
+      console.log('❌ User does not own this post and is not in admin mode');
       return res.status(403).json({ error: 'You can only delete your own posts' });
     }
     

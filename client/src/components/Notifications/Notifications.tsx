@@ -7,7 +7,7 @@ interface Notification {
   notification_id: string;
   recipient_user_id: string;
   actor_user_id: string;
-  notification_type: 'comment' | 'vote' | 'follow' | 'rating';
+  notification_type: 'comment' | 'comment_reply' | 'vote' | 'follow' | 'rating';
   entity_type: string;
   entity_id: string;
   message: string;
@@ -168,6 +168,18 @@ const Notifications: React.FC = () => {
         }
         break;
       
+      case 'comment_reply':
+        // Navigate directly to the detail page of the content where the reply was made
+        if (notification.entity_type === 'post' && notification.entity_id) {
+          navigate(`/posts/${notification.entity_id}`);
+        } else if (notification.entity_type === 'review' && notification.entity_id) {
+          navigate(`/reviews/${notification.entity_id}`);
+        } else {
+          // Fallback to feed
+          navigate('/feed');
+        }
+        break;
+      
       case 'vote':
         // Navigate directly to the detail page of the voted content
         if (notification.entity_type === 'post' && notification.entity_id) {
@@ -271,6 +283,8 @@ const Notifications: React.FC = () => {
   const getNotificationIcon = (type: string) => {
     switch (type) {
       case 'comment':
+        return <MessageCircle className="w-5 h-5 text-blue-600" />;
+      case 'comment_reply':
         return <MessageCircle className="w-5 h-5 text-blue-600" />;
       case 'rating':
         return <Star className="w-5 h-5 text-yellow-600" />;

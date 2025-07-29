@@ -32,63 +32,11 @@ const EntityRequestsAdmin: React.FC = () => {
   const [filter, setFilter] = useState<string>('all');
   const [loading, setLoading] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<EntityRequest | null>(null);
-  const [adminNotes, setAdminNotes] = useState('');
+  const [adminPhoto, setAdminPhoto] = useState<File | null>(null);
+  const [adminPhotoPreview, setAdminPhotoPreview] = useState<string | null>(null);
 
   // Check if user is admin
   const isAdmin = user?.isAdmin === true;
-
-  // Demo data for when backend is unavailable
-  const demoEntityRequests: EntityRequest[] = [
-    {
-      request_id: 1,
-      user_id: 1,
-      item_name: 'Tesla Model 3',
-      description: 'Electric vehicle with autopilot features',
-      category: 'Electronics',
-      sector: 'Automotive',
-      picture: undefined,
-      status: 'pending',
-      requested_at: '2025-07-20T10:30:00Z',
-      requester_name: 'John Smith',
-      requester_email: 'john@demo.com'
-    },
-    {
-      request_id: 2,
-      user_id: 2,
-      item_name: 'iPhone 15 Pro',
-      description: 'Latest iPhone with titanium build',
-      category: 'Electronics',
-      sector: 'Mobile',
-      picture: undefined,
-      status: 'pending',
-      requested_at: '2025-07-21T14:15:00Z',
-      requester_name: 'Sarah Johnson',
-      requester_email: 'sarah@demo.com'
-    },
-    {
-      request_id: 3,
-      user_id: 3,
-      item_name: 'MacBook Pro M3',
-      description: 'Professional laptop for developers',
-      category: 'Electronics',
-      sector: 'Computers',
-      picture: undefined,
-      status: 'approved',
-      reviewed_at: '2025-07-22T09:00:00Z',
-      reviewed_by: 1,
-      reviewed_by_name: 'Admin User',
-      requested_at: '2025-07-19T16:20:00Z',
-      requester_name: 'Mike Chen',
-      requester_email: 'mike@demo.com'
-    }
-  ];
-
-  const demoStats: EntityRequestStats[] = [
-    { status: 'pending', count: '2' },
-    { status: 'approved', count: '1' },
-    { status: 'rejected', count: '0' },
-    { status: 'total', count: '3' }
-  ];
 
   useEffect(() => {
     if (isAdmin) {
@@ -101,24 +49,27 @@ const EntityRequestsAdmin: React.FC = () => {
     try {
       setLoading(true);
       const url = filter === 'all' ? '/api/entity-requests' : `/api/entity-requests?status=${filter}`;
-      const response = await fetch(`http://localhost:3000${url}`);
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}${url}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        }
+      });
       
       if (!response.ok) {
-        throw new Error('API unavailable');
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
       
       const data = await response.json();
       
       if (data.success) {
-        setEntityRequests(data.requests);
+        setEntityRequests(data.requests || []);
+      } else {
+        throw new Error(data.message || 'Failed to fetch entity requests');
       }
     } catch (error) {
       console.error('Error fetching entity requests:', error);
-      // Use demo data when API is unavailable
-      const filteredRequests = filter === 'all' 
-        ? demoEntityRequests 
-        : demoEntityRequests.filter(req => req.status === filter);
-      setEntityRequests(filteredRequests);
+      setEntityRequests([]);
     } finally {
       setLoading(false);
     }
@@ -126,103 +77,108 @@ const EntityRequestsAdmin: React.FC = () => {
 
   const fetchStats = async () => {
     try {
-      const response = await fetch('http://localhost:3000/api/entity-requests/stats');
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/entity-requests/stats`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        }
+      });
       
       if (!response.ok) {
-        throw new Error('API unavailable');
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
       
       const data = await response.json();
       
       if (data.success) {
-        setStats(data.stats);
+        setStats(data.stats || []);
+      } else {
+        throw new Error(data.message || 'Failed to fetch stats');
       }
     } catch (error) {
       console.error('Error fetching stats:', error);
-      // Use demo stats when API is unavailable
-      setStats(demoStats);
+      setStats([]);
     }
   };
 
   const handleApprove = async (requestId: number) => {
     try {
-      const response = await fetch(`http://localhost:3000/api/entity-requests/${requestId}/approve`, {
+      setLoading(true);
+      
+      // Create FormData to handle photo upload
+      const formData = new FormData();
+      formData.append('adminId', user?.id?.toString() || '');
+      if (adminPhoto) {
+        formData.append('photo', adminPhoto);
+      }
+
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/entity-requests/${requestId}/approve`, {
         method: 'PUT',
         headers: {
-          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
         },
-        body: JSON.stringify({
-          adminId: user?.id,
-          adminNotes: adminNotes
-        }),
+        body: formData,
       });
 
       if (!response.ok) {
-        throw new Error('API unavailable');
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
 
       const data = await response.json();
       if (data.success) {
-        fetchEntityRequests();
-        fetchStats();
+        // Refresh both entity requests and stats to reflect the change
+        await fetchEntityRequests();
+        await fetchStats();
         setSelectedRequest(null);
-        setAdminNotes('');
-        alert('Entity request approved and entity created');
+        setAdminPhoto(null);
+        setAdminPhotoPreview(null);
+        alert('Entity request approved and entity created successfully!');
       } else {
-        alert('Failed to approve request: ' + data.error);
+        alert('Failed to approve request: ' + (data.message || data.error));
       }
     } catch (error) {
       console.error('Error approving request:', error);
-      // Simulate approval in demo mode
-      setEntityRequests(prev => prev.map(req => 
-        req.request_id === requestId 
-          ? { ...req, status: 'approved' as const, reviewed_by_name: user?.displayName }
-          : req
-      ));
-      setSelectedRequest(null);
-      setAdminNotes('');
-      alert('Entity request approved (Demo Mode)');
+      alert('Error approving request. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleReject = async (requestId: number) => {
     try {
-      const response = await fetch(`http://localhost:3000/api/entity-requests/${requestId}/reject`, {
+      setLoading(true);
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/entity-requests/${requestId}/reject`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
         },
         body: JSON.stringify({
-          adminId: user?.id,
-          adminNotes: adminNotes
+          adminId: user?.id
         }),
       });
 
       if (!response.ok) {
-        throw new Error('API unavailable');
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
 
       const data = await response.json();
       if (data.success) {
-        fetchEntityRequests();
-        fetchStats();
+        // Refresh both entity requests and stats to reflect the change
+        await fetchEntityRequests();
+        await fetchStats();
         setSelectedRequest(null);
-        setAdminNotes('');
-        alert('Entity request rejected');
+        setAdminPhoto(null);
+        setAdminPhotoPreview(null);
+        alert('Entity request rejected successfully!');
       } else {
-        alert('Failed to reject request: ' + data.error);
+        alert('Failed to reject request: ' + (data.message || data.error));
       }
     } catch (error) {
       console.error('Error rejecting request:', error);
-      // Simulate rejection in demo mode
-      setEntityRequests(prev => prev.map(req => 
-        req.request_id === requestId 
-          ? { ...req, status: 'rejected' as const, reviewed_by_name: user?.displayName }
-          : req
-      ));
-      setSelectedRequest(null);
-      setAdminNotes('');
-      alert('Entity request rejected (Demo Mode)');
+      alert('Error rejecting request. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -230,22 +186,51 @@ const EntityRequestsAdmin: React.FC = () => {
     if (!confirm('Are you sure you want to delete this request?')) return;
 
     try {
-      const response = await fetch(`/api/entity-requests/${requestId}`, {
+      setLoading(true);
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/entity-requests/${requestId}`, {
         method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        }
       });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
 
       const data = await response.json();
       if (data.success) {
-        fetchEntityRequests();
-        fetchStats();
-        alert('Entity request deleted successfully');
+        // Refresh both entity requests and stats to reflect the change
+        await fetchEntityRequests();
+        await fetchStats();
+        alert('Entity request deleted successfully!');
       } else {
-        alert('Failed to delete request: ' + data.error);
+        alert('Failed to delete request: ' + (data.message || data.error));
       }
     } catch (error) {
       console.error('Error deleting request:', error);
-      alert('Error deleting request');
+      alert('Error deleting request. Please try again.');
+    } finally {
+      setLoading(false);
     }
+  };
+
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setAdminPhoto(file);
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setAdminPhotoPreview(e.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const removePhoto = () => {
+    setAdminPhoto(null);
+    setAdminPhotoPreview(null);
   };
 
   const formatDate = (dateString: string) => {
@@ -387,11 +372,6 @@ const EntityRequestsAdmin: React.FC = () => {
                               <Tag className="w-3 h-3 mr-1" />
                               {request.category}
                             </span>
-                            {request.sector && (
-                              <span className="inline-flex items-center px-2 py-1 text-xs font-medium bg-purple-100 text-purple-800 rounded-full">
-                                {request.sector}
-                              </span>
-                            )}
                           </div>
                         </div>
                       </td>
@@ -464,7 +444,11 @@ const EntityRequestsAdmin: React.FC = () => {
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-medium text-gray-900">Entity Request Details</h3>
                   <button
-                    onClick={() => setSelectedRequest(null)}
+                    onClick={() => {
+                      setSelectedRequest(null);
+                      setAdminPhoto(null);
+                      setAdminPhotoPreview(null);
+                    }}
                     className="text-gray-400 hover:text-gray-600"
                   >
                     ×
@@ -482,15 +466,9 @@ const EntityRequestsAdmin: React.FC = () => {
                     <p className="mt-1 text-sm text-gray-900">{selectedRequest.description}</p>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">Category</label>
-                      <p className="mt-1 text-sm text-gray-900">{selectedRequest.category}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">Sector</label>
-                      <p className="mt-1 text-sm text-gray-900">{selectedRequest.sector || 'N/A'}</p>
-                    </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Category</label>
+                    <p className="mt-1 text-sm text-gray-900">{selectedRequest.category}</p>
                   </div>
 
                   <div>
@@ -498,16 +476,35 @@ const EntityRequestsAdmin: React.FC = () => {
                     <p className="mt-1 text-sm text-gray-900">{selectedRequest.requester_name} ({selectedRequest.requester_email})</p>
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Admin Notes</label>
-                    <textarea
-                      value={adminNotes}
-                      onChange={(e) => setAdminNotes(e.target.value)}
-                      className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm px-3 py-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                      rows={3}
-                      placeholder="Add notes for this decision..."
-                    />
-                  </div>
+                  {selectedRequest.status === 'pending' && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Upload Photo (Optional)</label>
+                      <div className="space-y-3">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handlePhotoChange}
+                          className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                        />
+                        
+                        {adminPhotoPreview && (
+                          <div className="relative">
+                            <img 
+                              src={adminPhotoPreview} 
+                              alt="Preview" 
+                              className="w-32 h-32 object-cover rounded-lg border border-gray-300"
+                            />
+                            <button
+                              onClick={removePhoto}
+                              className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600"
+                            >
+                              ×
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
 
                   {selectedRequest.status === 'pending' && (
                     <div className="flex justify-end space-x-3 pt-4">
