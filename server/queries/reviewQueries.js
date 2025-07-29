@@ -133,9 +133,42 @@ const getReviewsByItemId = async (itemId) => {
   }
 };
 
+// Get a specific review by ID
+const getReviewById = async (reviewId) => {
+  try {
+    console.log('Fetching review by ID:', reviewId);
+    
+    const result = await pool.query(`
+      SELECT 
+        r.review_id,
+        r.user_id,
+        r.item_id,
+        r.ratingpoint,
+        r.review_text,
+        r.title,
+        r.created_at,
+        u.username as user_name,
+        ph.photo_name as user_profile_picture,
+        re.item_name as item_name
+      FROM review r
+      JOIN "user" u ON r.user_id = u.user_id
+      LEFT JOIN photos ph ON ph.user_id = u.user_id AND ph.type = 'profile'
+      LEFT JOIN reviewable_entity re ON r.item_id = re.item_id
+      WHERE r.review_id = $1
+    `, [reviewId]);
+    
+    console.log(`Found ${result.rows.length} review(s) for ID ${reviewId}`);
+    return result.rows[0]; // Return single review or undefined
+  } catch (error) {
+    console.error('Error in getReviewById:', error);
+    throw error;
+  }
+};
+
 module.exports = {
   createReview,
   getAllReviews,
   getReviewsByUserId,
-  getReviewsByItemId
+  getReviewsByItemId,
+  getReviewById
 };

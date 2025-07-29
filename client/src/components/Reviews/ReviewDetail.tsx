@@ -4,6 +4,7 @@ import { Calendar, ArrowLeft, Star, User, Edit3, Save, X, Trash2 } from 'lucide-
 import { useAuth } from '../../context/AuthContext';
 import { useApp } from '../../context/AppContext';
 import CommentComponent from '../common/CommentComponent';
+import VoteComponent from '../common/VoteComponent';
 import ReportButton from '../Reports/ReportButton';
 
 const ReviewDetail: React.FC = () => {
@@ -20,19 +21,51 @@ const ReviewDetail: React.FC = () => {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (reviewId && reviews) {
-      const foundReview = reviews.find(r => 
-        r.id?.toString() === reviewId
-      );
-      setReview(foundReview);
-      if (foundReview) {
-        setEditTitle(foundReview.title || '');
-        setEditBody(foundReview.body || '');
-        setEditRating(foundReview.rating || 1);
+    const loadReview = async () => {
+      if (!reviewId) {
+        setLoading(false);
+        return;
       }
-      setLoading(false);
-    }
-  }, [reviewId]); // Removed 'reviews' from dependency array
+
+      // First try to find review in context
+      if (reviews) {
+        const foundReview = reviews.find(r => 
+          r.id?.toString() === reviewId
+        );
+        
+        if (foundReview) {
+          setReview(foundReview);
+          setEditTitle(foundReview.title || '');
+          setEditBody(foundReview.body || foundReview.reviewText || '');
+          setEditRating(foundReview.rating || 1);
+          setLoading(false);
+          return;
+        }
+      }
+
+      // If not found in context, fetch from API
+      try {
+        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/reviews/${reviewId}`);
+        if (response.ok) {
+          const reviewData = await response.json();
+          setReview(reviewData);
+          setEditTitle(reviewData.title || '');
+          setEditBody(reviewData.reviewText || '');
+          setEditRating(reviewData.rating || 1);
+        } else {
+          console.error('Review not found');
+          navigate('/'); // Redirect if review not found
+        }
+      } catch (error) {
+        console.error('Error fetching review:', error);
+        navigate('/'); // Redirect on error
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadReview();
+  }, [reviewId, reviews, navigate]); // Added navigate to dependencies
 
   const handleEditStart = () => {
     setIsEditing(true);
@@ -41,7 +74,7 @@ const ReviewDetail: React.FC = () => {
   const handleEditCancel = () => {
     setIsEditing(false);
     setEditTitle(review?.title || '');
-    setEditBody(review?.body || '');
+    setEditBody(review?.body || review?.reviewText || '');
     setEditRating(review?.rating || 1);
   };
 
@@ -185,11 +218,35 @@ const ReviewDetail: React.FC = () => {
             <div className="flex items-center">
               <Link 
                 to={`/profile/${review.userId}`}
-                className="w-12 h-12 bg-gradient-to-r from-teal-500 to-blue-500 rounded-full flex items-center justify-center hover:shadow-lg transition-shadow"
+                className="w-12 h-12 rounded-full hover:shadow-lg transition-shadow cursor-pointer overflow-hidden"
+                title={`View ${review.userName || 'user'}'s profile`}
               >
-                <span className="text-white font-medium text-lg">
-                  {(review.userName || 'U').charAt(0)}
-                </span>
+                {review.userProfilePicture || review.user_profile_picture ? (
+                  <img 
+                    src={review.userProfilePicture || review.user_profile_picture} 
+                    alt={`${review.userName || 'User'}'s profile`}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      // Fallback to letter avatar if image fails to load
+                      const target = e.target as HTMLImageElement;
+                      target.style.display = 'none';
+                      const fallback = target.nextElementSibling as HTMLElement;
+                      if (fallback) fallback.style.display = 'flex';
+                    }}
+                  />
+                ) : null}
+                <div 
+                  className={`w-full h-full bg-gradient-to-r from-teal-500 to-blue-500 flex items-center justify-center ${
+                    review.userProfilePicture || review.user_profile_picture ? 'hidden' : 'flex'
+                  }`}
+                  style={{
+                    display: review.userProfilePicture || review.user_profile_picture ? 'none' : 'flex'
+                  }}
+                >
+                  <span className="text-white font-medium text-lg">
+                    {(review.userName || 'U').charAt(0).toUpperCase()}
+                  </span>
+                </div>
               </Link>
               <div className="ml-4 flex-1">
                 <div className="flex items-center gap-2 mb-1">
@@ -324,7 +381,7 @@ const ReviewDetail: React.FC = () => {
                     {review.title}
                   </h2>
                   <p className="text-gray-800 text-lg leading-relaxed whitespace-pre-wrap">
-                    {review.body}
+                    {review.body || review.reviewText}
                   </p>
                 </>
               )}
@@ -341,6 +398,15 @@ const ReviewDetail: React.FC = () => {
                   </Link>
                 </div>
               )}
+            </div>
+
+            {/* Vote Section */}
+            <div className="mt-6 pt-6 border-t border-gray-100">
+              <VoteComponent
+                entityType="review"
+                entityId={parseInt(review.id.toString())}
+                className="justify-center"
+              />
             </div>
 
             {/* Comments Section */}

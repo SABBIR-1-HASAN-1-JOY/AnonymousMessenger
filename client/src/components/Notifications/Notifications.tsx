@@ -157,16 +157,11 @@ const Notifications: React.FC = () => {
         break;
       
       case 'comment':
-        // Navigate to the feed with highlighted content for comments
-        // Include actor_user_id to highlight the specific comment from that user
-        const highlightComment = notification.actor_user_id ? `&highlightUser=${notification.actor_user_id}` : '';
-        
+        // Navigate directly to the detail page of the commented content
         if (notification.entity_type === 'post' && notification.entity_id) {
-          navigate(`/feed?highlight=post-${notification.entity_id}${highlightComment}#comments`);
-        } else if (notification.entity_type === 'rate-my-work' && notification.entity_id) {
-          navigate(`/feed?highlight=rate-my-work-${notification.entity_id}${highlightComment}#comments`);
+          navigate(`/posts/${notification.entity_id}`);
         } else if (notification.entity_type === 'review' && notification.entity_id) {
-          navigate(`/feed?highlight=review-${notification.entity_id}${highlightComment}#comments`);
+          navigate(`/reviews/${notification.entity_id}`);
         } else {
           // Fallback to feed
           navigate('/feed');
@@ -174,11 +169,9 @@ const Notifications: React.FC = () => {
         break;
       
       case 'vote':
-        // Navigate to the voted content
+        // Navigate directly to the detail page of the voted content
         if (notification.entity_type === 'post' && notification.entity_id) {
           navigate(`/posts/${notification.entity_id}`);
-        } else if (notification.entity_type === 'rate-my-work' && notification.entity_id) {
-          navigate(`/rate-my-work/${notification.entity_id}`);
         } else if (notification.entity_type === 'review' && notification.entity_id) {
           navigate(`/reviews/${notification.entity_id}`);
         } else {
@@ -188,9 +181,11 @@ const Notifications: React.FC = () => {
         break;
       
       case 'rating':
-        // Navigate to the rated rate-my-work content
-        if (notification.entity_type === 'rate-my-work' && notification.entity_id) {
-          navigate(`/rate-my-work/${notification.entity_id}`);
+        // Navigate directly to the detail page of the rated content
+        if (notification.entity_type === 'post' && notification.entity_id) {
+          navigate(`/posts/${notification.entity_id}`);
+        } else if (notification.entity_type === 'review' && notification.entity_id) {
+          navigate(`/reviews/${notification.entity_id}`);
         } else {
           // Fallback to feed
           navigate('/feed');

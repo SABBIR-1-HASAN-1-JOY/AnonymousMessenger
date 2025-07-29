@@ -5,6 +5,7 @@ const {
   getAllReviews, 
   getReviewsByUser, 
   getReviewsByItem,
+  getReviewById,
   updateReview,
   deleteReview
 } = require('../controllers/reviewControllers');
@@ -27,6 +28,9 @@ router.get('/user/:userId', validateUserIdParam, getReviewsByUser);
 
 // Get reviews by item/entity ID (with item ID validation)
 router.get('/item/:itemId', validateItemIdParam, getReviewsByItem);
+
+// Get individual review by ID
+router.get('/:reviewId', getReviewById);
 
 // Update a review
 router.put('/:reviewId', updateReview);

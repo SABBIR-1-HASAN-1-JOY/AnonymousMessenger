@@ -160,9 +160,11 @@ const getPostById = async (req, res) => {
         p.created_at,
         p.is_rate_enabled,
         p.ratingpoint,
-        u.username as user_name
+        u.username as user_name,
+        ph.photo_name as user_profile_picture
       FROM post p
       LEFT JOIN "user" u ON p.user_id = u.user_id
+      LEFT JOIN photos ph ON ph.user_id = u.user_id AND ph.type = 'profile'
       WHERE p.post_id = $1
     `, [postId]);
     
@@ -193,8 +195,11 @@ const getPostById = async (req, res) => {
       userId: post.user_id.toString(),
       user_id: post.user_id,
       userName: post.user_name,
+      userProfilePicture: post.user_profile_picture ? `http://localhost:3000/api/photos/file/${post.user_profile_picture}` : null,
+      user_profile_picture: post.user_profile_picture ? `http://localhost:3000/api/photos/file/${post.user_profile_picture}` : null,
       type: post.is_rate_enabled ? 'rate-my-work' : 'simple',
       content: post.is_rate_enabled ? undefined : post.post_text,
+      post_text: post.post_text,
       title: parsedContent.title,
       description: parsedContent.description,
       createdAt: post.created_at,

@@ -3,7 +3,8 @@ const {
   createReview, 
   getAllReviews, 
   getReviewsByUserId, 
-  getReviewsByItemId 
+  getReviewsByItemId,
+  getReviewById
 } = require('../queries/reviewQueries');
 
 const createNewReview = async (reviewData) => {
@@ -46,9 +47,20 @@ const fetchReviewsByItemId = async (itemId) => {
   }
 };
 
+const fetchReviewById = async (reviewId) => {
+  try {
+    console.log('Fetching review by ID:', reviewId);
+    const review = await getReviewById(reviewId);
+    return review;
+  } catch (error) {
+    throw error;
+  }
+};
+
 module.exports = {
   createNewReview,
   fetchAllReviews,
   fetchReviewsByUserId,
-  fetchReviewsByItemId
+  fetchReviewsByItemId,
+  fetchReviewById
 };

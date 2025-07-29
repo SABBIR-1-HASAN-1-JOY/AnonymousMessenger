@@ -442,13 +442,36 @@ const EntityDetail: React.FC = () => {
                           <div className="flex items-center">
                             <Link 
                               to={`/profile/${(review.user_id || review.userId)?.toString()}`}
-                              className="w-12 h-12 bg-gradient-to-r from-blue-500 to-teal-500 rounded-full flex items-center justify-center hover:shadow-lg transition-shadow cursor-pointer"
+                              className="w-12 h-12 rounded-full hover:shadow-lg transition-shadow cursor-pointer overflow-hidden"
                               title={`View ${review.userName || review.username || 'user'}'s profile`}
                               onClick={(e) => e.stopPropagation()}
                             >
-                              <span className="text-white font-medium text-lg">
-                                {(review.userName || review.username || 'U').charAt(0)}
-                              </span>
+                              {review.userProfilePicture || review.user_profile_picture ? (
+                                <img 
+                                  src={review.userProfilePicture || review.user_profile_picture} 
+                                  alt={`${review.userName || review.username || 'User'}'s profile`}
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    // Fallback to letter avatar if image fails to load
+                                    const target = e.target as HTMLImageElement;
+                                    target.style.display = 'none';
+                                    const fallback = target.nextElementSibling as HTMLElement;
+                                    if (fallback) fallback.style.display = 'flex';
+                                  }}
+                                />
+                              ) : null}
+                              <div 
+                                className={`w-full h-full bg-gradient-to-r from-blue-500 to-teal-500 flex items-center justify-center ${
+                                  review.userProfilePicture || review.user_profile_picture ? 'hidden' : 'flex'
+                                }`}
+                                style={{
+                                  display: review.userProfilePicture || review.user_profile_picture ? 'none' : 'flex'
+                                }}
+                              >
+                                <span className="text-white font-medium text-lg">
+                                  {(review.userName || review.username || 'U').charAt(0).toUpperCase()}
+                                </span>
+                              </div>
                             </Link>
                             <div className="ml-4">
                               <Link 

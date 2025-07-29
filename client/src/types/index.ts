@@ -35,8 +35,10 @@ export interface Review {
   userId: string;
   userName: string;
   userAvatar?: string;
+  userProfilePicture?: string;
   title: string;
-  body: string;
+  body?: string; // Frontend field
+  reviewText?: string; // API field
   rating: number;
   pictures?: string[];
   createdAt: string;

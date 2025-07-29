@@ -35,9 +35,11 @@ const getReviewsByEntityId = async (entityId) => {
       SELECT 
         r.*, 
         u.username as username,
-        r.ratingpoint as rating
+        r.ratingpoint as rating,
+        ph.photo_name as user_profile_picture
       FROM review r 
       JOIN "user" u ON r.user_id = u.user_id
+      LEFT JOIN photos ph ON ph.user_id = u.user_id AND ph.type = 'profile'
       WHERE r.item_id = $1
       ORDER BY r.created_at DESC
     `, [entityId]);

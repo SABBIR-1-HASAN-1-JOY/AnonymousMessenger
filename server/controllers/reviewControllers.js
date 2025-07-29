@@ -3,7 +3,8 @@ const {
   createNewReview, 
   fetchAllReviews, 
   fetchReviewsByUserId, 
-  fetchReviewsByItemId 
+  fetchReviewsByItemId,
+  fetchReviewById
 } = require('../services/reviewServices');
 
 const createReview = async (req, res) => {
@@ -218,6 +219,42 @@ const updateReview = async (req, res) => {
   }
 };
 
+const getReviewById = async (req, res) => {
+  try {
+    console.log('=== GET REVIEW BY ID ENDPOINT HIT ===');
+    const { reviewId } = req.params;
+    console.log('Review ID:', reviewId);
+    
+    const review = await fetchReviewById(reviewId);
+    
+    if (!review) {
+      return res.status(404).json({ error: 'Review not found' });
+    }
+    
+    // Format response to match frontend expectations
+    const responseData = {
+      id: review.review_id.toString(),
+      review_id: review.review_id,
+      entityId: review.item_id.toString(),
+      userId: review.user_id.toString(),
+      user_id: review.user_id,
+      userName: review.user_name || 'Unknown User',
+      userProfilePicture: review.user_profile_picture ? `http://localhost:3000/api/photos/file/${review.user_profile_picture}` : null,
+      title: review.title || 'Review',
+      reviewText: review.review_text,
+      rating: review.ratingpoint,
+      createdAt: review.created_at,
+      itemName: review.item_name || 'Unknown Item'
+    };
+    
+    console.log('Found review:', responseData);
+    res.status(200).json(responseData);
+  } catch (error) {
+    console.error('Error fetching review by ID:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
 // Delete a review
 const deleteReview = async (req, res) => {
   try {
@@ -275,6 +312,7 @@ module.exports = {
   getAllReviews,
   getReviewsByUser,
   getReviewsByItem,
+  getReviewById,
   updateReview,
   deleteReview
 };

@@ -20,18 +20,42 @@ const PostDetail: React.FC = () => {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (id && posts) {
-      const foundPost = posts.find(p => 
-        p.id?.toString() === id
-      );
-      setPost(foundPost);
-      if (foundPost) {
-        setEditContent((foundPost as any).post_text || (foundPost as any).content || (foundPost as any).description || '');
-        setEditTitle((foundPost as any).title || '');
+    const fetchPost = async () => {
+      if (id && posts) {
+        // First try to find the post in the existing posts array
+        const foundPost = posts.find(p => 
+          p.id?.toString() === id
+        );
+        
+        if (foundPost) {
+          setPost(foundPost);
+          setEditContent((foundPost as any).post_text || (foundPost as any).content || (foundPost as any).description || '');
+          setEditTitle((foundPost as any).title || '');
+          setLoading(false);
+        } else {
+          // If not found in context, try to fetch it directly from the server
+          try {
+            const response = await fetch(`http://localhost:3000/api/posts/${id}`);
+            if (response.ok) {
+              const postData = await response.json();
+              setPost(postData);
+              setEditContent((postData as any).post_text || (postData as any).content || (postData as any).description || '');
+              setEditTitle((postData as any).title || '');
+            }
+          } catch (error) {
+            console.error('Error fetching post:', error);
+          }
+          setLoading(false);
+        }
+      } else if (id && posts && posts.length === 0) {
+        // Posts array is loaded but empty
+        setLoading(false);
       }
-      setLoading(false);
-    }
-  }, [id]); // Removed 'posts' from dependency array
+      // If posts is null/undefined, keep loading state true
+    };
+
+    fetchPost();
+  }, [id, posts]); // Added 'posts' back to dependency array
 
   const handleEditStart = () => {
     setIsEditing(true);
@@ -166,11 +190,35 @@ const PostDetail: React.FC = () => {
             <div className="flex items-center">
               <Link 
                 to={`/profile/${post.user_id || post.userId}`}
-                className="w-12 h-12 bg-gradient-to-r from-blue-500 to-teal-500 rounded-full flex items-center justify-center hover:shadow-lg transition-shadow"
+                className="w-12 h-12 rounded-full hover:shadow-lg transition-shadow cursor-pointer overflow-hidden"
+                title={`View ${post.user_name || post.userName || 'user'}'s profile`}
               >
-                <span className="text-white font-medium text-lg">
-                  {(post.user_name || post.userName || 'U').charAt(0)}
-                </span>
+                {post.userProfilePicture || post.user_profile_picture ? (
+                  <img 
+                    src={post.userProfilePicture || post.user_profile_picture} 
+                    alt={`${post.user_name || post.userName || 'User'}'s profile`}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      // Fallback to letter avatar if image fails to load
+                      const target = e.target as HTMLImageElement;
+                      target.style.display = 'none';
+                      const fallback = target.nextElementSibling as HTMLElement;
+                      if (fallback) fallback.style.display = 'flex';
+                    }}
+                  />
+                ) : null}
+                <div 
+                  className={`w-full h-full bg-gradient-to-r from-blue-500 to-teal-500 flex items-center justify-center ${
+                    post.userProfilePicture || post.user_profile_picture ? 'hidden' : 'flex'
+                  }`}
+                  style={{
+                    display: post.userProfilePicture || post.user_profile_picture ? 'none' : 'flex'
+                  }}
+                >
+                  <span className="text-white font-medium text-lg">
+                    {(post.user_name || post.userName || 'U').charAt(0).toUpperCase()}
+                  </span>
+                </div>
               </Link>
               <div className="ml-4 flex-1">
                 <div className="flex items-center gap-2 mb-1">

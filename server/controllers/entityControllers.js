@@ -119,6 +119,8 @@ const getEntityWithReviews = async (req, res) => {
         user_id: review.user_id,
         userName: review.username,
         username: review.username,
+        userProfilePicture: review.user_profile_picture ? `http://localhost:3000/api/photos/file/${review.user_profile_picture}` : null,
+        user_profile_picture: review.user_profile_picture ? `http://localhost:3000/api/photos/file/${review.user_profile_picture}` : null,
         rating: review.rating || review.ratingpoint,
         ratingpoint: review.ratingpoint,
         title: review.title || 'Review',
