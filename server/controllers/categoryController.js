@@ -28,7 +28,26 @@ const getEntitiesByCategory = async (req, res) => {
     }
 
     const entities = await pool.query(
-      `SELECT * FROM reviewable_entity WHERE category_id = $1 ORDER BY item_name`,
+      `SELECT 
+        re.*,
+        c.category_name as category,
+        latest_photo.photo_name as entity_photo_name,
+        CASE 
+          WHEN latest_photo.photo_name IS NOT NULL THEN CONCAT('http://localhost:3000/api/photos/file/', latest_photo.photo_name)
+          ELSE re.picture
+        END as picture
+      FROM reviewable_entity re 
+      LEFT JOIN category c ON re.category_id = c.category_id
+      LEFT JOIN (
+        SELECT DISTINCT ON (source_id) 
+          source_id, 
+          photo_name 
+        FROM photos 
+        WHERE type = 'entities' 
+        ORDER BY source_id, upload_date DESC
+      ) latest_photo ON latest_photo.source_id = re.item_id
+      WHERE re.category_id = $1 
+      ORDER BY re.item_name`,
       [categoryId]
     );
 

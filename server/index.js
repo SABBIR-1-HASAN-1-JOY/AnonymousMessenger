@@ -48,7 +48,20 @@ app.use(express.json());
 // Root route to confirm server is working
 app.get('/', async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM reviewable_entity');
+    const result = await pool.query(`
+      SELECT 
+        re.*,
+        c.category_name as category,
+        ph.photo_name as entity_photo_name,
+        CASE 
+          WHEN ph.photo_name IS NOT NULL THEN CONCAT('http://localhost:3000/api/photos/file/', ph.photo_name)
+          ELSE re.picture
+        END as picture
+      FROM reviewable_entity re
+      LEFT JOIN category c ON re.category_id = c.category_id
+      LEFT JOIN photos ph ON ph.source_id = re.item_id AND ph.type = 'entities'
+      ORDER BY re.item_name
+    `);
     res.json(result.rows);
   } catch (err) {
     console.error('Error querying database:', err);
@@ -59,7 +72,20 @@ app.get('/', async (req, res) => {
 // Get all products
 app.get('/api/products', async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM reviewable_entity');
+    const result = await pool.query(`
+      SELECT 
+        re.*,
+        c.category_name as category,
+        ph.photo_name as entity_photo_name,
+        CASE 
+          WHEN ph.photo_name IS NOT NULL THEN CONCAT('http://localhost:3000/api/photos/file/', ph.photo_name)
+          ELSE re.picture
+        END as picture
+      FROM reviewable_entity re
+      LEFT JOIN category c ON re.category_id = c.category_id
+      LEFT JOIN photos ph ON ph.source_id = re.item_id AND ph.type = 'entities'
+      ORDER BY re.item_name
+    `);
     res.json(result.rows);
   } catch (err) {
     console.error(err.message);

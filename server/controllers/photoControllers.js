@@ -23,10 +23,15 @@ const uploadPhoto = async (req, res) => {
     const { userId, type, typeId, isAdmin } = req.body;
     const userIsAdmin = isAdmin === 'true';
     
+    console.log('Upload parameters:', { userId, type, typeId, isAdmin, userIsAdmin });
+    
     // Validate upload permissions
     try {
+      console.log('Validating upload permissions...');
       validatePhotoUploadPermissions(parseInt(userId), userIsAdmin, type, parseInt(typeId));
+      console.log('Upload permissions validated successfully');
     } catch (permissionError) {
+      console.error('Upload permission validation failed:', permissionError.message);
       // Delete the uploaded file since validation failed
       const fs = require('fs');
       if (fs.existsSync(req.file.path)) {
@@ -81,6 +86,32 @@ const uploadPhoto = async (req, res) => {
         }
       } catch (fetchError) {
         console.error('Error checking for existing profile photos:', fetchError);
+        // Continue with upload even if check fails
+      }
+    }
+    
+    // For entity photos, delete previous entity photos (admin only)
+    if (type === 'entities') {
+      try {
+        console.log('Checking for existing entity photos to replace...');
+        const existingPhotos = await fetchPhotosByTypeAndSource('entities', parseInt(typeId));
+        
+        if (existingPhotos && existingPhotos.length > 0) {
+          console.log(`Found ${existingPhotos.length} existing entity photos to delete`);
+          
+          // Delete all existing entity photos for this entity
+          for (const photo of existingPhotos) {
+            try {
+              await deletePhotoAndFile(photo.photo_id);
+              console.log(`Deleted old entity photo: ${photo.photo_name}`);
+            } catch (deleteError) {
+              console.error(`Error deleting old entity photo ${photo.photo_id}:`, deleteError);
+              // Continue with upload even if old photo deletion fails
+            }
+          }
+        }
+      } catch (fetchError) {
+        console.error('Error checking for existing entity photos:', fetchError);
         // Continue with upload even if check fails
       }
     }
