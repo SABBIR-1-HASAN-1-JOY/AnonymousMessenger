@@ -63,3 +63,4 @@ The application expects the following tables:
 - `POST /api/create-user` - Create new user
 - `GET /api/messages` - Get messages
 - `POST /api/send-message` - Send a message
+# AnonymousMessenger
