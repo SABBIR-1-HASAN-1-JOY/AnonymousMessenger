@@ -11,7 +11,7 @@ app.use((req, res, next) => {
 });
 
 app.use(cors({
-  origin: ['http://localhost:5173', 'https://kc5m06d5-5174.asse.devtunnels.ms', 'https://kc5m06d5-4173.asse.devtunnels.ms'],
+  origin: ['https://kc5m06d5-5173.asse.devtunnels.ms', 'https://kc5m06d5-5174.asse.devtunnels.ms', 'https://kc5m06d5-4173.asse.devtunnels.ms'],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
