@@ -4,7 +4,7 @@
  Source Server         : Project Anon
  Source Server Type    : PostgreSQL
  Source Server Version : 170005 (170005)
- Source Host           : ep-blue-paper-adi2m5dv-pooler.c-2.us-east-1.aws.neon.tech:5432
+ Source Host           : ep-old-paper-adpe1kzh-pooler.c-2.us-east-1.aws.neon.tech:5432
  Source Catalog        : neondb
  Source Schema         : public
 
@@ -12,15 +12,15 @@
  Target Server Version : 170005 (170005)
  File Encoding         : 65001
 
- Date: 22/08/2025 18:20:02
+ Date: 22/08/2025 20:03:35
 */
 
 
 -- ----------------------------
--- Sequence structure for connection_id_seq
+-- Sequence structure for group_messages_id_seq
 -- ----------------------------
-DROP SEQUENCE IF EXISTS "public"."connection_id_seq";
-CREATE SEQUENCE "public"."connection_id_seq" 
+DROP SEQUENCE IF EXISTS "public"."group_messages_id_seq";
+CREATE SEQUENCE "public"."group_messages_id_seq" 
 INCREMENT 1
 MINVALUE  1
 MAXVALUE 2147483647
@@ -28,10 +28,10 @@ START 1
 CACHE 1;
 
 -- ----------------------------
--- Sequence structure for messages_id_seq
+-- Sequence structure for groups_id_seq
 -- ----------------------------
-DROP SEQUENCE IF EXISTS "public"."messages_id_seq";
-CREATE SEQUENCE "public"."messages_id_seq" 
+DROP SEQUENCE IF EXISTS "public"."groups_id_seq";
+CREATE SEQUENCE "public"."groups_id_seq" 
 INCREMENT 1
 MINVALUE  1
 MAXVALUE 2147483647
@@ -39,10 +39,10 @@ START 1
 CACHE 1;
 
 -- ----------------------------
--- Sequence structure for waiting_id_seq
+-- Sequence structure for p2p_connections_id_seq
 -- ----------------------------
-DROP SEQUENCE IF EXISTS "public"."waiting_id_seq";
-CREATE SEQUENCE "public"."waiting_id_seq" 
+DROP SEQUENCE IF EXISTS "public"."p2p_connections_id_seq";
+CREATE SEQUENCE "public"."p2p_connections_id_seq" 
 INCREMENT 1
 MINVALUE  1
 MAXVALUE 2147483647
@@ -50,136 +50,230 @@ START 1
 CACHE 1;
 
 -- ----------------------------
--- Table structure for code
+-- Sequence structure for p2p_messages_id_seq
 -- ----------------------------
-DROP TABLE IF EXISTS "public"."code";
-CREATE TABLE "public"."code" (
-  "codeToday" char(1) COLLATE "pg_catalog"."default" NOT NULL
-)
-;
-
--- ----------------------------
--- Table structure for connection
--- ----------------------------
-DROP TABLE IF EXISTS "public"."connection";
-CREATE TABLE "public"."connection" (
-  "id" int4 NOT NULL GENERATED ALWAYS AS IDENTITY (
+DROP SEQUENCE IF EXISTS "public"."p2p_messages_id_seq";
+CREATE SEQUENCE "public"."p2p_messages_id_seq" 
 INCREMENT 1
 MINVALUE  1
 MAXVALUE 2147483647
 START 1
-CACHE 1
-),
-  "user1" text COLLATE "pg_catalog"."default" NOT NULL,
-  "user2" text COLLATE "pg_catalog"."default" NOT NULL,
-  "time" timestamp(6)
+CACHE 1;
+
+-- ----------------------------
+-- Table structure for group_messages
+-- ----------------------------
+DROP TABLE IF EXISTS "public"."group_messages";
+CREATE TABLE "public"."group_messages" (
+  "id" int4 NOT NULL DEFAULT nextval('group_messages_id_seq'::regclass),
+  "group_id" int4 NOT NULL,
+  "message" text COLLATE "pg_catalog"."default" NOT NULL,
+  "sent_at" timestamp(6) NOT NULL DEFAULT now(),
+  "expires_at" timestamp(6) NOT NULL DEFAULT (now() + '00:05:00'::interval)
 )
 ;
 
 -- ----------------------------
--- Table structure for messages
+-- Table structure for groups
 -- ----------------------------
-DROP TABLE IF EXISTS "public"."messages";
-CREATE TABLE "public"."messages" (
-  "id" int4 NOT NULL GENERATED ALWAYS AS IDENTITY (
-INCREMENT 1
-MINVALUE  1
-MAXVALUE 2147483647
-START 1
-CACHE 1
-),
-  "sender" text COLLATE "pg_catalog"."default",
-  "reciever" text COLLATE "pg_catalog"."default",
-  "time" timestamp(6),
-  "message" text COLLATE "pg_catalog"."default"
+DROP TABLE IF EXISTS "public"."groups";
+CREATE TABLE "public"."groups" (
+  "id" int4 NOT NULL DEFAULT nextval('groups_id_seq'::regclass),
+  "topic" varchar COLLATE "pg_catalog"."default" NOT NULL,
+  "created_at" timestamp(6) NOT NULL DEFAULT now(),
+  "expires_at" timestamp(6) NOT NULL
 )
 ;
 
 -- ----------------------------
--- Table structure for user
+-- Table structure for login_codes
 -- ----------------------------
-DROP TABLE IF EXISTS "public"."user";
-CREATE TABLE "public"."user" (
+DROP TABLE IF EXISTS "public"."login_codes";
+CREATE TABLE "public"."login_codes" (
+  "code" varchar COLLATE "pg_catalog"."default" NOT NULL,
+  "created_at" timestamp(6) NOT NULL DEFAULT now(),
+  "expires_at" timestamp(6) NOT NULL
+)
+;
+
+-- ----------------------------
+-- Table structure for p2p_connections
+-- ----------------------------
+DROP TABLE IF EXISTS "public"."p2p_connections";
+CREATE TABLE "public"."p2p_connections" (
+  "id" int4 NOT NULL DEFAULT nextval('p2p_connections_id_seq'::regclass),
+  "user1" varchar COLLATE "pg_catalog"."default" NOT NULL,
+  "user2" varchar COLLATE "pg_catalog"."default" NOT NULL,
+  "started_at" timestamp(6) NOT NULL DEFAULT now(),
+  "expires_at" timestamp(6) NOT NULL,
+  "status" varchar(20) COLLATE "pg_catalog"."default" NOT NULL
+)
+;
+
+-- ----------------------------
+-- Table structure for p2p_messages
+-- ----------------------------
+DROP TABLE IF EXISTS "public"."p2p_messages";
+CREATE TABLE "public"."p2p_messages" (
+  "id" int4 NOT NULL DEFAULT nextval('p2p_messages_id_seq'::regclass),
+  "connection_id" int4 NOT NULL,
+  "sender" varchar COLLATE "pg_catalog"."default" NOT NULL,
+  "message" text COLLATE "pg_catalog"."default" NOT NULL,
+  "sent_at" timestamp(6) NOT NULL DEFAULT now(),
+  "expires_at" timestamp(6) NOT NULL DEFAULT (now() + '00:05:00'::interval)
+)
+;
+
+-- ----------------------------
+-- Table structure for users
+-- ----------------------------
+DROP TABLE IF EXISTS "public"."users";
+CREATE TABLE "public"."users" (
   "username" varchar COLLATE "pg_catalog"."default" NOT NULL,
-  "time" timestamp(6)
+  "created_at" timestamp(6) NOT NULL DEFAULT now(),
+  "last_active" timestamp(6) NOT NULL DEFAULT now()
 )
 ;
 
 -- ----------------------------
--- Table structure for waiting
+-- Function structure for cleanup_expired_groups
 -- ----------------------------
-DROP TABLE IF EXISTS "public"."waiting";
-CREATE TABLE "public"."waiting" (
-  "id" int4 NOT NULL GENERATED ALWAYS AS IDENTITY (
-INCREMENT 1
-MINVALUE  1
-MAXVALUE 2147483647
-START 1
-CACHE 1
-),
-  "username" text COLLATE "pg_catalog"."default"
-)
-;
+DROP FUNCTION IF EXISTS "public"."cleanup_expired_groups"();
+CREATE FUNCTION "public"."cleanup_expired_groups"()
+  RETURNS "pg_catalog"."trigger" AS $BODY$
+BEGIN
+  DELETE FROM groups WHERE expires_at < now();
+  RETURN NEW;
+END;
+$BODY$
+  LANGUAGE plpgsql VOLATILE
+  COST 100;
+
+-- ----------------------------
+-- Function structure for cleanup_expired_messages
+-- ----------------------------
+DROP FUNCTION IF EXISTS "public"."cleanup_expired_messages"();
+CREATE FUNCTION "public"."cleanup_expired_messages"()
+  RETURNS "pg_catalog"."trigger" AS $BODY$
+BEGIN
+  DELETE FROM p2p_messages WHERE expires_at < now();
+  DELETE FROM group_messages WHERE expires_at < now();
+  RETURN NEW;
+END;
+$BODY$
+  LANGUAGE plpgsql VOLATILE
+  COST 100;
+
+-- ----------------------------
+-- Function structure for cleanup_expired_p2p
+-- ----------------------------
+DROP FUNCTION IF EXISTS "public"."cleanup_expired_p2p"();
+CREATE FUNCTION "public"."cleanup_expired_p2p"()
+  RETURNS "pg_catalog"."trigger" AS $BODY$
+BEGIN
+  DELETE FROM p2p_connections WHERE expires_at < now();
+  RETURN NEW;
+END;
+$BODY$
+  LANGUAGE plpgsql VOLATILE
+  COST 100;
 
 -- ----------------------------
 -- Alter sequences owned by
 -- ----------------------------
-ALTER SEQUENCE "public"."connection_id_seq"
-OWNED BY "public"."connection"."id";
-SELECT setval('"public"."connection_id_seq"', 14, true);
+ALTER SEQUENCE "public"."group_messages_id_seq"
+OWNED BY "public"."group_messages"."id";
+SELECT setval('"public"."group_messages_id_seq"', 1, false);
 
 -- ----------------------------
 -- Alter sequences owned by
 -- ----------------------------
-ALTER SEQUENCE "public"."messages_id_seq"
-OWNED BY "public"."messages"."id";
-SELECT setval('"public"."messages_id_seq"', 1, false);
+ALTER SEQUENCE "public"."groups_id_seq"
+OWNED BY "public"."groups"."id";
+SELECT setval('"public"."groups_id_seq"', 1, false);
 
 -- ----------------------------
 -- Alter sequences owned by
 -- ----------------------------
-ALTER SEQUENCE "public"."waiting_id_seq"
-OWNED BY "public"."waiting"."id";
-SELECT setval('"public"."waiting_id_seq"', 1, false);
+ALTER SEQUENCE "public"."p2p_connections_id_seq"
+OWNED BY "public"."p2p_connections"."id";
+SELECT setval('"public"."p2p_connections_id_seq"', 1, false);
 
 -- ----------------------------
--- Primary Key structure for table code
+-- Alter sequences owned by
 -- ----------------------------
-ALTER TABLE "public"."code" ADD CONSTRAINT "Code_pkey" PRIMARY KEY ("codeToday");
+ALTER SEQUENCE "public"."p2p_messages_id_seq"
+OWNED BY "public"."p2p_messages"."id";
+SELECT setval('"public"."p2p_messages_id_seq"', 1, false);
 
 -- ----------------------------
--- Primary Key structure for table connection
+-- Triggers structure for table group_messages
 -- ----------------------------
-ALTER TABLE "public"."connection" ADD CONSTRAINT "connection_pkey" PRIMARY KEY ("id");
+CREATE TRIGGER "trg_cleanup_groups" BEFORE INSERT ON "public"."group_messages"
+FOR EACH ROW
+EXECUTE PROCEDURE "public"."cleanup_expired_groups"();
+CREATE TRIGGER "trg_cleanup_messages_group" BEFORE INSERT ON "public"."group_messages"
+FOR EACH ROW
+EXECUTE PROCEDURE "public"."cleanup_expired_messages"();
 
 -- ----------------------------
--- Primary Key structure for table messages
+-- Primary Key structure for table group_messages
 -- ----------------------------
-ALTER TABLE "public"."messages" ADD CONSTRAINT "messages_pkey" PRIMARY KEY ("id");
+ALTER TABLE "public"."group_messages" ADD CONSTRAINT "group_messages_pkey" PRIMARY KEY ("id");
 
 -- ----------------------------
--- Primary Key structure for table user
+-- Primary Key structure for table groups
 -- ----------------------------
-ALTER TABLE "public"."user" ADD CONSTRAINT "user_pkey" PRIMARY KEY ("username");
+ALTER TABLE "public"."groups" ADD CONSTRAINT "groups_pkey" PRIMARY KEY ("id");
 
 -- ----------------------------
--- Primary Key structure for table waiting
+-- Primary Key structure for table login_codes
 -- ----------------------------
-ALTER TABLE "public"."waiting" ADD CONSTRAINT "waiting_pkey" PRIMARY KEY ("id");
+ALTER TABLE "public"."login_codes" ADD CONSTRAINT "login_codes_pkey" PRIMARY KEY ("code");
 
 -- ----------------------------
--- Foreign Keys structure for table connection
+-- Checks structure for table p2p_connections
 -- ----------------------------
-ALTER TABLE "public"."connection" ADD CONSTRAINT "connected_user" FOREIGN KEY ("user2") REFERENCES "public"."user" ("username") ON DELETE NO ACTION ON UPDATE NO ACTION;
-ALTER TABLE "public"."connection" ADD CONSTRAINT "connected_user2" FOREIGN KEY ("user1") REFERENCES "public"."user" ("username") ON DELETE NO ACTION ON UPDATE NO ACTION;
+ALTER TABLE "public"."p2p_connections" ADD CONSTRAINT "p2p_connections_status_check" CHECK (status::text = ANY (ARRAY['waiting'::character varying, 'active'::character varying, 'ended'::character varying]::text[]));
 
 -- ----------------------------
--- Foreign Keys structure for table messages
+-- Primary Key structure for table p2p_connections
 -- ----------------------------
-ALTER TABLE "public"."messages" ADD CONSTRAINT "constraint_1" FOREIGN KEY ("sender") REFERENCES "public"."user" ("username") ON DELETE NO ACTION ON UPDATE NO ACTION;
-ALTER TABLE "public"."messages" ADD CONSTRAINT "constraint_2" FOREIGN KEY ("reciever") REFERENCES "public"."user" ("username") ON DELETE NO ACTION ON UPDATE NO ACTION;
+ALTER TABLE "public"."p2p_connections" ADD CONSTRAINT "p2p_connections_pkey" PRIMARY KEY ("id");
 
 -- ----------------------------
--- Foreign Keys structure for table waiting
+-- Triggers structure for table p2p_messages
 -- ----------------------------
-ALTER TABLE "public"."waiting" ADD CONSTRAINT "wait_constraint" FOREIGN KEY ("username") REFERENCES "public"."user" ("username") ON DELETE NO ACTION ON UPDATE NO ACTION;
+CREATE TRIGGER "trg_cleanup_messages_p2p" BEFORE INSERT ON "public"."p2p_messages"
+FOR EACH ROW
+EXECUTE PROCEDURE "public"."cleanup_expired_messages"();
+CREATE TRIGGER "trg_cleanup_p2p" BEFORE INSERT ON "public"."p2p_messages"
+FOR EACH ROW
+EXECUTE PROCEDURE "public"."cleanup_expired_p2p"();
+
+-- ----------------------------
+-- Primary Key structure for table p2p_messages
+-- ----------------------------
+ALTER TABLE "public"."p2p_messages" ADD CONSTRAINT "p2p_messages_pkey" PRIMARY KEY ("id");
+
+-- ----------------------------
+-- Primary Key structure for table users
+-- ----------------------------
+ALTER TABLE "public"."users" ADD CONSTRAINT "users_pkey" PRIMARY KEY ("username");
+
+-- ----------------------------
+-- Foreign Keys structure for table group_messages
+-- ----------------------------
+ALTER TABLE "public"."group_messages" ADD CONSTRAINT "group_messages_group_id_fkey" FOREIGN KEY ("group_id") REFERENCES "public"."groups" ("id") ON DELETE CASCADE ON UPDATE NO ACTION;
+
+-- ----------------------------
+-- Foreign Keys structure for table p2p_connections
+-- ----------------------------
+ALTER TABLE "public"."p2p_connections" ADD CONSTRAINT "p2p_connections_user1_fkey" FOREIGN KEY ("user1") REFERENCES "public"."users" ("username") ON DELETE NO ACTION ON UPDATE NO ACTION;
+ALTER TABLE "public"."p2p_connections" ADD CONSTRAINT "p2p_connections_user2_fkey" FOREIGN KEY ("user2") REFERENCES "public"."users" ("username") ON DELETE NO ACTION ON UPDATE NO ACTION;
+
+-- ----------------------------
+-- Foreign Keys structure for table p2p_messages
+-- ----------------------------
+ALTER TABLE "public"."p2p_messages" ADD CONSTRAINT "p2p_messages_connection_id_fkey" FOREIGN KEY ("connection_id") REFERENCES "public"."p2p_connections" ("id") ON DELETE CASCADE ON UPDATE NO ACTION;
+ALTER TABLE "public"."p2p_messages" ADD CONSTRAINT "p2p_messages_sender_fkey" FOREIGN KEY ("sender") REFERENCES "public"."users" ("username") ON DELETE NO ACTION ON UPDATE NO ACTION;
