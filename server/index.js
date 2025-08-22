@@ -11,7 +11,7 @@ app.use((req, res, next) => {
 });
 
 app.use(cors({
-  origin: ['https://kc5m06d5-5173.asse.devtunnels.ms', 'https://kc5m06d5-5174.asse.devtunnels.ms', 'https://kc5m06d5-4173.asse.devtunnels.ms'],
+  origin: ['http://localhost:5173', 'https://kc5m06d5-5174.asse.devtunnels.ms', 'https://kc5m06d5-4173.asse.devtunnels.ms'],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
@@ -49,7 +49,7 @@ app.post('/api/verify-code', async (req, res) => {
     );
 
     console.log('Database query result:', result.rows);
-    console.log('Number of rows found:', result.rows.length);
+  
 
     if (result.rows.length === 0) {
       console.log('Code not found in database or expired - Invalid code');
@@ -410,12 +410,13 @@ app.get('/api/get-p2p-messages/:username/:partner', async (req, res) => {
     const connectionId = connection.rows[0].id;
 
     // Get messages for this connection that haven't expired
-    const result = await pool.query(
-      'SELECT sender, message, sent_at FROM "p2p_messages" WHERE connection_id = $1 AND expires_at > NOW() ORDER BY sent_at ASC',
+  const result = await pool.query(
+  'SELECT sender, message, sent_at, expires_at FROM "p2p_messages" WHERE connection_id = $1 AND expires_at > NOW() ORDER BY sent_at ASC',
       [connectionId]
     );
 
-    res.json({ messages: result.rows });
+  const nowRes = await pool.query('SELECT NOW() as server_now');
+  res.json({ server_now: nowRes.rows[0].server_now, messages: result.rows });
   } catch (err) {
     console.error('Get P2P messages error:', err.message);
     res.status(500).json({ error: 'Server error retrieving messages' });
@@ -437,16 +438,24 @@ app.post('/api/leave-p2p', async (req, res) => {
       ['ended', username, 'waiting', 'active']
     );
 
-    // Delete the user (this will cascade and clean up related data)
-    await pool.query(
-      'DELETE FROM "users" WHERE username = $1',
-      [username]
-    );
-
-    res.json({ success: true, message: 'Left P2P and cleaned up data' });
+    // Only leave P2P here; full account cleanup should be done via /api/logout
+      const { username } = req.query;
   } catch (err) {
     console.error('Leave P2P error:', err.message);
     res.status(500).json({ error: 'Server error leaving P2P' });
+  }
+});
+
+// Logout endpoint with cleanup (preserve groups created by user for 5 hours)
+app.post('/api/logout', async (req, res) => {
+  const { username } = req.body;
+  if (!username) return res.status(400).json({ error: 'Username is required' });
+  try {
+    await cleanupUserPreservingGroups(username);
+    return res.json({ success: true });
+  } catch (err) {
+    console.error('Logout cleanup error:', err.message);
+    return res.status(500).json({ error: 'Server error during logout cleanup' });
   }
 });
 
@@ -693,18 +702,18 @@ app.get('/api/get-group-messages/:groupId', async (req, res) => {
       'SELECT * FROM "group_members" WHERE group_id = $1 AND username = $2',
       [groupId, username]
     );
-    
+
     if (memberCheck.rows.length === 0) {
       return res.status(403).json({ error: 'You are not a member of this group' });
     }
     
-    // Get messages (last 100, ordered by time)
-    const result = await pool.query(
-      'SELECT sender, message, sent_at FROM "group_messages" WHERE group_id = $1 ORDER BY sent_at ASC LIMIT 50',
+    // Get messages (up to 50, ordered by time) and ensure only non-expired messages are returned
+  const result = await pool.query(
+  'SELECT sender, message, sent_at, expires_at FROM "group_messages" WHERE group_id = $1 AND expires_at > NOW() ORDER BY sent_at ASC LIMIT 50',
       [groupId]
     );
-    
-    res.json({ messages: result.rows });
+  const nowRes = await pool.query('SELECT NOW() as server_now');
+  res.json({ server_now: nowRes.rows[0].server_now, messages: result.rows });
   } catch (err) {
     console.error('Get group messages error:', err.message);
     res.status(500).json({ error: 'Server error retrieving messages' });
@@ -893,18 +902,34 @@ function startCleanupJobs() {
     }
   }, 60000); // Every minute
 
-  // Clean inactive users every 2 minutes
+  // Clean inactive users every 2 minutes (no messages in last 10 minutes)
   setInterval(async () => {
     try {
-      // Delete users who haven't been active for more than 10 minutes
-      const result = await pool.query(
-        'DELETE FROM "users" WHERE last_active < NOW() - INTERVAL \'10 minutes\''
-      );
-      if (result.rowCount > 0) {
-        console.log(`Cleaned up ${result.rowCount} inactive users`);
+      // Find users with no messages in last 10 minutes across p2p and group chats
+      const { rows } = await pool.query(`
+        SELECT u.username
+        FROM "users" u
+        WHERE u.last_active < NOW() - INTERVAL '10 minutes'
+          AND NOT EXISTS (
+            SELECT 1 FROM "p2p_messages" pm 
+            JOIN "p2p_connections" pc ON pc.id = pm.connection_id
+            WHERE (pc.user1 = u.username OR pc.user2 = u.username)
+              AND pm.sent_at > NOW() - INTERVAL '10 minutes'
+          )
+          AND NOT EXISTS (
+            SELECT 1 FROM "group_messages" gm
+            WHERE gm.sender = u.username AND gm.sent_at > NOW() - INTERVAL '10 minutes'
+          )
+      `);
+
+      for (const r of rows) {
+        await cleanupUserPreservingGroups(r.username);
+      }
+      if (rows.length > 0) {
+        console.log(`Inactive cleanup completed for ${rows.length} user(s)`);
       }
     } catch (err) {
-      console.error('User cleanup error:', err.message);
+      console.error('User inactivity cleanup error:', err.message);
     }
   }, 120000); // Every 2 minutes
 
@@ -945,24 +970,41 @@ function startCleanupJobs() {
   }, 1800000); // Every 30 minutes
 }
 
-// Helper function to clean up user data
-async function cleanupUser(username) {
+// Helper function to clean up user data while preserving groups they created for 5 hours
+async function cleanupUserPreservingGroups(username) {
   try {
-    console.log(`Cleaning up inactive user: ${username}`);
-    
-    // End any active connections
+    console.log(`Cleaning up user data (preserve groups for 5h): ${username}`);
+
+    // 1) Extend retention for groups created by this user and detach creator to avoid FK issues
+    await pool.query(
+      'UPDATE "groups" SET expires_at = GREATEST(expires_at, NOW() + INTERVAL \'' +
+      '5 hours\'), creator = NULL WHERE creator = $1',
+      [username]
+    );
+
+    // 2) End any active/waiting P2P connections
     await pool.query(
       'UPDATE "p2p_connections" SET status = $1, expires_at = NOW() WHERE (user1 = $2 OR user2 = $2) AND status IN ($3, $4)',
       ['ended', username, 'waiting', 'active']
     );
 
-    // Delete user (this will cascade delete messages due to foreign key constraints)
+    // 3) Delete P2P messages for connections involving this user
     await pool.query(
-      'DELETE FROM "users" WHERE username = $1',
+      'DELETE FROM "p2p_messages" WHERE connection_id IN (SELECT id FROM "p2p_connections" WHERE user1 = $1 OR user2 = $1)',
       [username]
     );
 
-    console.log(`User ${username} cleaned up successfully`);
+    // 4) Remove the user from any groups and delete their group messages
+    await pool.query('DELETE FROM "group_members" WHERE username = $1', [username]);
+    await pool.query('DELETE FROM "group_messages" WHERE sender = $1', [username]);
+
+    // 5) Remove ended connections involving the user (optional to reduce clutter)
+    await pool.query('DELETE FROM "p2p_connections" WHERE user1 = $1 OR user2 = $1', [username]);
+
+    // 6) Finally, delete the user account
+    await pool.query('DELETE FROM "users" WHERE username = $1', [username]);
+
+    console.log(`User ${username} cleanup completed (groups retained for 5h).`);
   } catch (err) {
     console.error(`Error cleaning up user ${username}:`, err.message);
   }
