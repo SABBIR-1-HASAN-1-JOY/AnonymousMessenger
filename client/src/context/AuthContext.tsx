@@ -34,7 +34,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const verifyCode = async (code: string): Promise<boolean> => {
     try {
-      const response = await fetch('https://kc5m06d5-3000.asse.devtunnels.ms/api/verify-code', {
+      const response = await fetch('http://localhost:3000/api/verify-code', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -56,7 +56,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const createUser = async (username: string): Promise<boolean> => {
     try {
       // First check if username is available
-      const checkResponse = await fetch('https://kc5m06d5-3000.asse.devtunnels.ms/api/check-username', {
+      const checkResponse = await fetch('http://localhost:3000/api/check-username', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -69,7 +69,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
 
       // Create user
-      const createResponse = await fetch('https://kc5m06d5-3000.asse.devtunnels.ms/api/create-user', {
+      const createResponse = await fetch('http://localhost:3000/api/create-user', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -92,7 +92,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const logout = async () => {
     try {
       if (user?.username) {
-        await fetch('https://kc5m06d5-3000.asse.devtunnels.ms/api/logout', {
+        await fetch('http://localhost:3000/api/logout', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ username: user.username })

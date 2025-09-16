@@ -25,8 +25,8 @@ app.use((req, res, next) => {
 // CORS configuration for production and development
 const allowedOrigins = [
   'http://localhost:5173',
-  'https://kc5m06d5-5174.asse.devtunnels.ms', 
-  'https://kc5m06d5-4173.asse.devtunnels.ms'
+  'http://localhost:5174', 
+  'http://localhost:4173'
 ];
 
 // Add Railway deployment URL if available
