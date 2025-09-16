@@ -13,6 +13,9 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 
+// Start the server
+const PORT = process.env.PORT || 3000;
+
 // Add request logging middleware
 app.use((req, res, next) => {
   console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
@@ -916,8 +919,7 @@ app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname, "client_dist", "index.html"));
 });
 
-// Start the server
-const PORT = process.env.PORT || 3000;
+
 
 // Add graceful shutdown handling
 process.on('SIGTERM', () => {
