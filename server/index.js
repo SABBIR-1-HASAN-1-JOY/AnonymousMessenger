@@ -23,20 +23,12 @@ app.use((req, res, next) => {
 });
 
 // CORS configuration for production and development
-const allowedOrigins = [
-  'http://localhost:5173',
-  'http://localhost:5174', 
-  'http://localhost:4173'
-];
-
-// Add Railway deployment URL if available
-if (process.env.RAILWAY_STATIC_URL) {
-  allowedOrigins.push(`https://${process.env.RAILWAY_STATIC_URL}`);
-}
-
-// Simplified CORS configuration for better compatibility
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production' ? true : allowedOrigins,
+  origin: process.env.NODE_ENV === 'production' ? true : [
+    'http://localhost:5173',
+    'http://localhost:5174', 
+    'http://localhost:4173'
+  ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
