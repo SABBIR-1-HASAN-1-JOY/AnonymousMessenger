@@ -31,23 +31,16 @@ if (process.env.RAILWAY_STATIC_URL) {
   allowedOrigins.push(`https://${process.env.RAILWAY_STATIC_URL}`);
 }
 
+// Simplified CORS configuration for better compatibility
 app.use(cors({
-  origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
-    
-    if (allowedOrigins.indexOf(origin) !== -1 || process.env.NODE_ENV === 'production') {
-      return callback(null, true);
-    } else {
-      return callback(new Error('Not allowed by CORS'));
-    }
-  },
+  origin: process.env.NODE_ENV === 'production' ? true : allowedOrigins,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Serve static frontend files
 app.use(express.static(path.join(__dirname, "client_dist")));
@@ -59,6 +52,26 @@ app.get('/', async (req, res) => {
   } catch (err) {
     console.error(err.message);
     res.status(500).json({ error: err.message });
+  }
+});
+
+// Health check endpoint for Railway
+app.get('/health', async (req, res) => {
+  try {
+    // Test database connection
+    await pool.query('SELECT 1');
+    res.status(200).json({ 
+      status: 'healthy',
+      message: 'Server and database are running',
+      timestamp: new Date().toISOString()
+    });
+  } catch (err) {
+    console.error('Health check failed:', err.message);
+    res.status(503).json({ 
+      status: 'unhealthy',
+      message: 'Database connection failed',
+      timestamp: new Date().toISOString()
+    });
   }
 });
 
@@ -905,23 +918,54 @@ app.get("*", (req, res) => {
 
 // Start the server
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, '0.0.0.0', () => {
+
+// Add graceful shutdown handling
+process.on('SIGTERM', () => {
+  console.log('SIGTERM received, shutting down gracefully');
+  process.exit(0);
+});
+
+process.on('SIGINT', () => {
+  console.log('SIGINT received, shutting down gracefully');
+  process.exit(0);
+});
+
+const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Anonymous Messenger Server running on port ${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
-  (async () => {
-    try {
-      // Check the database connection
-      await pool.query('SELECT 1');
-      console.log('Database connection successful');
-      
-      // Start cleanup jobs
-      startCleanupJobs();
-      
-    } catch (err) {
-      console.error('Error during server startup:', err);
-    }
-  })();
+  console.log(`Process ID: ${process.pid}`);
+  
+  // Initialize database and cleanup jobs asynchronously
+  initializeServer();
 });
+
+// Set server timeout
+server.timeout = 30000; // 30 seconds
+
+async function initializeServer() {
+  try {
+    console.log('Initializing server...');
+    
+    // Test database connection with timeout
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Database connection timeout')), 10000)
+    );
+    
+    const dbPromise = pool.query('SELECT 1 as test');
+    
+    await Promise.race([dbPromise, timeoutPromise]);
+    console.log('✅ Database connection successful');
+    
+    // Start cleanup jobs
+    startCleanupJobs();
+    console.log('✅ Server initialization complete');
+    
+  } catch (err) {
+    console.error('❌ Error during server initialization:', err.message);
+    // Don't exit the process, let Railway handle restarts
+    console.log('Server will continue running without database features');
+  }
+}
 
 // Cleanup functions
 function startCleanupJobs() {
