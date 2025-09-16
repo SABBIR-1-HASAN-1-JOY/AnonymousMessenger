@@ -71,13 +71,13 @@ const Messaging: React.FC = () => {
 
     const poll = async () => {
       try {
-        const res = await fetch(`http://localhost:3000/api/check-p2p/${user.username}`);
+        const res = await fetch(`https://kc5m06d5-3000.asse.devtunnels.ms/api/check-p2p/${user.username}`);
         if (res.ok) {
           const status = await res.json();
           setP2pStatus(status);
           if (status.connected && status.partner) {
             setWaitStartTime(null);
-            const mr = await fetch(`http://localhost:3000/api/get-p2p-messages/${user.username}/${status.partner}`);
+            const mr = await fetch(`https://kc5m06d5-3000.asse.devtunnels.ms/api/get-p2p-messages/${user.username}/${status.partner}`);
             if (mr.ok) {
               const data = await mr.json();
               if (data.server_now) {
@@ -90,7 +90,7 @@ const Messaging: React.FC = () => {
         }
 
         if (p2pStatus.waiting) {
-          const sr = await fetch('http://localhost:3000/api/queue-stats');
+          const sr = await fetch('https://kc5m06d5-3000.asse.devtunnels.ms/api/queue-stats');
           if (sr.ok) {
             setQueueStats(await sr.json());
           }
@@ -108,8 +108,8 @@ const Messaging: React.FC = () => {
   const loadGroups = useCallback(async () => {
     try {
       const url = searchTerm.trim()
-        ? `http://localhost:3000/api/groups?search=${encodeURIComponent(searchTerm)}`
-        : 'http://localhost:3000/api/groups';
+        ? `https://kc5m06d5-3000.asse.devtunnels.ms/api/groups?search=${encodeURIComponent(searchTerm)}`
+        : 'https://kc5m06d5-3000.asse.devtunnels.ms/api/groups';
       const r = await fetch(url);
       if (r.ok) {
         const data = await r.json();
@@ -147,7 +147,7 @@ const Messaging: React.FC = () => {
   const loadGroupMessages = useCallback(async () => {
     if (!user || !currentGroup) return;
     try {
-      const r = await fetch(`http://localhost:3000/api/get-group-messages/${currentGroup.id}?username=${user.username}`);
+      const r = await fetch(`https://kc5m06d5-3000.asse.devtunnels.ms/api/get-group-messages/${currentGroup.id}?username=${user.username}`);
       if (r.ok) {
         const data = await r.json();
         if (data.server_now) {
@@ -174,7 +174,7 @@ const Messaging: React.FC = () => {
     setLoading(true);
     setWaitStartTime(Date.now());
     try {
-      const r = await fetch('http://localhost:3000/api/join-p2p', {
+      const r = await fetch('https://kc5m06d5-3000.asse.devtunnels.ms/api/join-p2p', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username: user.username }),
@@ -203,7 +203,7 @@ const Messaging: React.FC = () => {
     if (!message.trim() || !user || !p2pStatus.partner) return;
     setLoading(true);
     try {
-      const r = await fetch('http://localhost:3000/api/send-p2p-message', {
+      const r = await fetch('https://kc5m06d5-3000.asse.devtunnels.ms/api/send-p2p-message', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sender: user.username, receiver: p2pStatus.partner, message: message.trim() }),
@@ -221,7 +221,7 @@ const Messaging: React.FC = () => {
   const leaveP2P = async () => {
     if (!user) return;
     try {
-      await fetch('http://localhost:3000/api/leave-p2p', {
+      await fetch('https://kc5m06d5-3000.asse.devtunnels.ms/api/leave-p2p', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username: user.username }),
@@ -239,7 +239,7 @@ const Messaging: React.FC = () => {
     if (!user || !newGroupTopic.trim()) return;
     setLoading(true);
     try {
-      const r = await fetch('http://localhost:3000/api/create-group', {
+      const r = await fetch('https://kc5m06d5-3000.asse.devtunnels.ms/api/create-group', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ creator: user.username, topic: newGroupTopic.trim(), description: newGroupDescription.trim() }),
@@ -263,7 +263,7 @@ const Messaging: React.FC = () => {
     if (!user) return;
     setLoading(true);
     try {
-      const r = await fetch('http://localhost:3000/api/join-group', {
+      const r = await fetch('https://kc5m06d5-3000.asse.devtunnels.ms/api/join-group', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username: user.username, groupId: group.id }),
@@ -285,7 +285,7 @@ const Messaging: React.FC = () => {
     if (!message.trim() || !user || !currentGroup) return;
     setLoading(true);
     try {
-      const r = await fetch('http://localhost:3000/api/send-group-message', {
+      const r = await fetch('https://kc5m06d5-3000.asse.devtunnels.ms/api/send-group-message', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sender: user.username, groupId: currentGroup.id, message: message.trim() }),
