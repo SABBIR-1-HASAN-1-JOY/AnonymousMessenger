@@ -1,0 +1,40 @@
+{
+  "name": "anonymous-messenger",
+  "version": "1.0.0",
+  "description": "Anonymous messaging application with React frontend and Node.js backend",
+  "main": "server/index.js",
+  "type": "module",
+  "scripts": {
+    "install:client": "cd client && npm install",
+    "install:server": "cd server && npm install",
+    "install:all": "npm run install:client && npm run install:server",
+    "build:client": "cd client && npm run build",
+    "build": "npm run install:all && npm run build:client && cp -r client/dist server/client_dist",
+    "start": "cd server && node index.js",
+    "dev:client": "cd client && npm run dev",
+    "dev:server": "cd server && npm run dev",
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
+    "railway:build": "npm run build",
+    "railway:start": "npm run start"
+  },
+  "keywords": ["messaging", "anonymous", "react", "nodejs", "postgresql"],
+  "author": "",
+  "license": "ISC",
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
+  "dependencies": {
+    "axios": "^1.10.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.5.0",
+    "express": "^5.1.0",
+    "joi": "^17.13.3",
+    "multer": "^2.0.2",
+    "pg": "^8.16.2"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "nodemon": "^3.1.10"
+  }
+}

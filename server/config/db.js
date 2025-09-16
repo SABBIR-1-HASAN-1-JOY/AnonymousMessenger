@@ -1,15 +1,17 @@
 // config/db.js
-const dotenv = require('dotenv');
+import dotenv from 'dotenv';
+import pkg from 'pg';
+
 dotenv.config();
 
-const { Pool } = require('pg');
+const { Pool } = pkg;
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: {
+  ssl: process.env.NODE_ENV === 'production' ? {
     rejectUnauthorized: false
-  }
+  } : false
 });
 
-module.exports = pool;
+export default pool;
 

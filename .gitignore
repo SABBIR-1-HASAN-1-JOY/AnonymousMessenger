@@ -6,11 +6,25 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
+server.log
 
+# Dependencies
 node_modules
+*/node_modules/
+
+# Production builds
 dist
 dist-ssr
+build
+client_dist/
+
+# Environment variables
 *.local
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
 
 # Editor directories and files
 .vscode/*
@@ -22,4 +36,29 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Railway specific
+.railway/
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+
+# nyc test coverage
+.nyc_output
+
+# Dependency directories
+.npm
+.node_repl_history
+
+# Output of 'npm pack'
+*.tgz
+
+# Yarn Integrity file
+.yarn-integrity
 .env

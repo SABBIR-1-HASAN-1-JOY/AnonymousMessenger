@@ -10,6 +10,78 @@ A simple anonymous messaging application with code-based authentication and peer
 - **Session-based Usernames**: Usernames are visible during chat but removed after each session
 - **Real-time Messaging**: Live message updates during active conversations
 
+## Tech Stack
+
+- **Frontend**: React 18, TypeScript, Vite, Tailwind CSS
+- **Backend**: Node.js, Express.js, PostgreSQL
+- **Deployment**: Railway (configured for easy deployment)
+
+## Railway Deployment
+
+This project is configured for easy deployment on Railway. Follow these steps:
+
+### Prerequisites
+1. A Railway account ([railway.app](https://railway.app))
+2. A GitHub account with this repository
+
+### Deployment Steps
+
+1. **Fork/Clone this repository** to your GitHub account
+
+2. **Create a new Railway project**:
+   - Go to [Railway Dashboard](https://railway.app/dashboard)
+   - Click "New Project"
+   - Select "Deploy from GitHub repo"
+   - Choose this repository
+
+3. **Add PostgreSQL database**:
+   - In your Railway project, click "New Service"
+   - Select "Database" → "PostgreSQL"
+   - Railway will automatically create the database and provide a `DATABASE_URL`
+
+4. **Configure environment variables**:
+   The app will automatically use Railway's `DATABASE_URL`. Optional variables:
+   ```bash
+   NODE_ENV=production
+   PORT=3000  # Railway sets this automatically
+   ```
+
+5. **Deploy**:
+   - Railway will automatically build and deploy your app
+   - The build process will:
+     - Install dependencies for both client and server
+     - Build the React frontend
+     - Copy built files to server directory
+     - Start the Node.js server
+
+6. **Database Setup**:
+   After first deployment, you'll need to run the database setup:
+   - Use Railway's built-in PostgreSQL client or connect via any PostgreSQL client
+   - Run the SQL commands from `setup_database.sql` file
+
+### Local Development
+
+1. **Install dependencies**:
+   ```bash
+   npm run install:all
+   ```
+
+2. **Set up environment variables**:
+   ```bash
+   cp .env.example .env
+   # Edit .env with your local database URL
+   ```
+
+3. **Run development servers**:
+   ```bash
+   # Run both frontend and backend
+   npm run dev
+   
+   # Or run separately:
+   npm run dev:client  # Frontend on port 5173
+   npm run dev:server  # Backend on port 3000
+   ```
+
 ## Database Schema
 
 The application uses PostgreSQL with the following main tables:

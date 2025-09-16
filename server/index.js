@@ -1,6 +1,15 @@
-const express = require('express');
-const cors = require('cors');
-const pool = require('./config/db.js');
+import express from 'express';
+import cors from 'cors';
+import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import pool from './config/db.js';
+
+// Load environment variables
+dotenv.config();
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 
@@ -10,13 +19,38 @@ app.use((req, res, next) => {
   next();
 });
 
+// CORS configuration for production and development
+const allowedOrigins = [
+  'http://localhost:5173',
+  'https://kc5m06d5-5174.asse.devtunnels.ms', 
+  'https://kc5m06d5-4173.asse.devtunnels.ms'
+];
+
+// Add Railway deployment URL if available
+if (process.env.RAILWAY_STATIC_URL) {
+  allowedOrigins.push(`https://${process.env.RAILWAY_STATIC_URL}`);
+}
+
 app.use(cors({
-  origin: ['http://localhost:5173', 'https://kc5m06d5-5174.asse.devtunnels.ms', 'https://kc5m06d5-4173.asse.devtunnels.ms'],
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.indexOf(origin) !== -1 || process.env.NODE_ENV === 'production') {
+      return callback(null, true);
+    } else {
+      return callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
+
 app.use(express.json());
+
+// Serve static frontend files
+app.use(express.static(path.join(__dirname, "client_dist")));
 
 // Root route to confirm server is working
 app.get('/', async (req, res) => {
@@ -864,10 +898,16 @@ app.get('/api/test', (req, res) => {
   res.json({ message: 'Server is working!', timestamp: new Date().toISOString() });
 });
 
+// Serve React app for any non-API routes (must be last)
+app.get("*", (req, res) => {
+  res.sendFile(path.join(__dirname, "client_dist", "index.html"));
+});
+
 // Start the server
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`🚀 Anonymous Messenger Server running on http://localhost:${PORT}`);
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`🚀 Anonymous Messenger Server running on port ${PORT}`);
+  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
   (async () => {
     try {
       // Check the database connection
