@@ -13,6 +13,9 @@ interface Message {
   id?: string;
   sending?: boolean; // Show spinning circle while sending
   showTick?: boolean; // Show tick for 1 second after sent
+  reply_id?: number;
+  reply_sender?: string;
+  reply_message?: string;
 }
 
 interface Group {
@@ -52,6 +55,9 @@ const Messaging: React.FC = () => {
   const [now, setNow] = useState<number>(Date.now());
   const [serverNowOffset, setServerNowOffset] = useState<number>(0);
   const MESSAGE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
+  // Reply functionality states
+  const [replyingTo, setReplyingTo] = useState<Message | null>(null);
 
   // Group messaging states
   const [groups, setGroups] = useState<Group[]>([]);
@@ -214,6 +220,7 @@ const Messaging: React.FC = () => {
     const messageText = message.trim();
     const messageId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     const currentTime = new Date().toISOString();
+    const replyId = replyingTo?.id ? parseInt(replyingTo.id) : null;
     
     // 1. Show message immediately with spinning circle
     const tempMessage: Message = {
@@ -222,19 +229,28 @@ const Messaging: React.FC = () => {
       message: messageText,
       sent_at: currentTime,
       expires_at: new Date(Date.now() + MESSAGE_TTL_MS).toISOString(),
-      sending: true // Show spinning circle
+      sending: true, // Show spinning circle
+      reply_id: replyId || undefined,
+      reply_sender: replyingTo?.sender,
+      reply_message: replyingTo?.message
     };
 
     // Add to messages immediately and clear input
     setMessages(prev => [...prev, tempMessage]);
     setMessage('');
+    setReplyingTo(null); // Clear reply state
     
     try {
       // Send to server
       const r = await fetch(`${API_BASE_URL}/api/send-p2p-message`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sender: user.username, receiver: p2pStatus.partner, message: messageText }),
+        body: JSON.stringify({ 
+          sender: user.username, 
+          receiver: p2pStatus.partner, 
+          message: messageText,
+          reply_id: replyId
+        }),
       });
       
       if (r.ok) {
@@ -336,14 +352,26 @@ const Messaging: React.FC = () => {
     e.preventDefault();
     if (!message.trim() || !user || !currentGroup) return;
     setLoading(true);
+    
+    const replyId = replyingTo?.id ? parseInt(replyingTo.id) : null;
+    
     try {
       const r = await fetch(`${API_BASE_URL}/api/send-group-message`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sender: user.username, groupId: currentGroup.id, message: message.trim() }),
+        body: JSON.stringify({ 
+          sender: user.username, 
+          groupId: currentGroup.id, 
+          message: message.trim(),
+          reply_id: replyId
+        }),
       });
-      if (r.ok) setMessage('');
-      else alert('Failed to send message');
+      if (r.ok) {
+        setMessage('');
+        setReplyingTo(null); // Clear reply state
+      } else {
+        alert('Failed to send message');
+      }
     } catch (e) {
       console.error(e);
       alert('Error sending message');
@@ -448,8 +476,17 @@ const Messaging: React.FC = () => {
                     <div className="space-y-4">
                       {messages.map((msg, index) => (
                         <div key={msg.id || index} className={`flex ${msg.sender === user.username ? 'justify-end' : 'justify-start'}`}>
-                          <div className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg relative ${msg.sender === user.username ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800'}`}>
+                          <div className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg relative group ${msg.sender === user.username ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800'}`}>
                             <p className="font-medium text-xs mb-1">{msg.sender === user.username ? 'You' : p2pStatus.partner}</p>
+                            
+                            {/* Reply context */}
+                            {msg.reply_id && msg.reply_sender && msg.reply_message && (
+                              <div className={`mb-2 p-2 rounded border-l-2 text-xs ${msg.sender === user.username ? 'bg-blue-500/20 border-blue-300' : 'bg-gray-300/50 border-gray-400'}`}>
+                                <p className="font-medium opacity-75">Replying to {msg.reply_sender === user.username ? 'You' : msg.reply_sender}:</p>
+                                <p className="opacity-75 truncate">{msg.reply_message}</p>
+                              </div>
+                            )}
+                            
                             <p>{msg.message || 'Message content'}</p>
                             <div className="flex items-center justify-between mt-1">
                               <p className="text-xs opacity-75">Disappears in {getRemaining(msg.sent_at, MESSAGE_TTL_MS, msg.expires_at)}</p>
@@ -465,6 +502,19 @@ const Messaging: React.FC = () => {
                                 </div>
                               )}
                             </div>
+                            
+                            {/* Reply button */}
+                            {msg.id && !msg.sending && (
+                              <button
+                                onClick={() => setReplyingTo(msg)}
+                                className={`absolute -right-1 top-1/2 transform -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded text-xs ${
+                                  msg.sender === user.username ? 'bg-blue-700 hover:bg-blue-800 text-white' : 'bg-gray-300 hover:bg-gray-400 text-gray-700'
+                                }`}
+                                title="Reply"
+                              >
+                                ↩️
+                              </button>
+                            )}
                           </div>
                         </div>
                       ))}
@@ -472,6 +522,28 @@ const Messaging: React.FC = () => {
                   )}
                 </div>
                 <form onSubmit={sendP2PMessage} className="p-4">
+                  {/* Reply preview */}
+                  {replyingTo && (
+                    <div className="mb-3 p-3 bg-gray-100 rounded-lg border-l-4 border-blue-500">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-gray-700">
+                            Replying to {replyingTo.sender === user.username ? 'You' : replyingTo.sender}:
+                          </p>
+                          <p className="text-sm text-gray-600 truncate">{replyingTo.message}</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setReplyingTo(null)}
+                          className="ml-2 text-gray-400 hover:text-gray-600 p-1"
+                          title="Cancel reply"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  
                   <div className="flex items-center gap-2 relative">
                     <button
                       type="button"
@@ -484,7 +556,7 @@ const Messaging: React.FC = () => {
                       type="text"
                       value={message}
                       onChange={(e) => setMessage(e.target.value)}
-                      placeholder="Type your message..."
+                      placeholder={replyingTo ? "Type your reply..." : "Type your message..."}
                       className="flex-1 px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       maxLength={500}
                       disabled={loading}
@@ -494,7 +566,7 @@ const Messaging: React.FC = () => {
                       disabled={!message.trim() || loading}
                       className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 disabled:bg-gray-400 transition-colors"
                     >
-                      Send
+                      {replyingTo ? 'Reply' : 'Send'}
                     </button>
                     {showEmojiPicker && (
                       <div className="absolute bottom-full right-0 mb-2 z-10">
@@ -629,11 +701,33 @@ const Messaging: React.FC = () => {
               ) : (
                 <div className="space-y-4">
                   {messages.map((msg, index) => (
-                    <div key={index} className={`flex ${msg.sender === user.username ? 'justify-end' : 'justify-start'}`}>
-                      <div className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${msg.sender === user.username ? 'bg-green-600 text-white' : 'bg-gray-200 text-gray-800'}`}>
+                    <div key={msg.id || index} className={`flex ${msg.sender === user.username ? 'justify-end' : 'justify-start'}`}>
+                      <div className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg relative group ${msg.sender === user.username ? 'bg-green-600 text-white' : 'bg-gray-200 text-gray-800'}`}>
                         <p className="font-medium text-xs mb-1">{msg.sender === user.username ? 'You' : msg.sender}</p>
+                        
+                        {/* Reply context */}
+                        {msg.reply_id && msg.reply_sender && msg.reply_message && (
+                          <div className={`mb-2 p-2 rounded border-l-2 text-xs ${msg.sender === user.username ? 'bg-green-500/20 border-green-300' : 'bg-gray-300/50 border-gray-400'}`}>
+                            <p className="font-medium opacity-75">Replying to {msg.reply_sender === user.username ? 'You' : msg.reply_sender}:</p>
+                            <p className="opacity-75 truncate">{msg.reply_message}</p>
+                          </div>
+                        )}
+                        
                         <p>{msg.message}</p>
                         <p className="text-xs opacity-75 mt-1">Disappears in {getRemaining(msg.sent_at, MESSAGE_TTL_MS, msg.expires_at)}</p>
+                        
+                        {/* Reply button */}
+                        {msg.id && (
+                          <button
+                            onClick={() => setReplyingTo(msg)}
+                            className={`absolute -right-1 top-1/2 transform -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded text-xs ${
+                              msg.sender === user.username ? 'bg-green-700 hover:bg-green-800 text-white' : 'bg-gray-300 hover:bg-gray-400 text-gray-700'
+                            }`}
+                            title="Reply"
+                          >
+                            ↩️
+                          </button>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -641,6 +735,28 @@ const Messaging: React.FC = () => {
               )}
             </div>
             <form onSubmit={sendGroupMessage} className="p-4">
+              {/* Reply preview */}
+              {replyingTo && (
+                <div className="mb-3 p-3 bg-gray-100 rounded-lg border-l-4 border-green-500">
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-gray-700">
+                        Replying to {replyingTo.sender === user.username ? 'You' : replyingTo.sender}:
+                      </p>
+                      <p className="text-sm text-gray-600 truncate">{replyingTo.message}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setReplyingTo(null)}
+                      className="ml-2 text-gray-400 hover:text-gray-600 p-1"
+                      title="Cancel reply"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+              )}
+              
               <div className="flex items-center gap-2 relative">
                 <button
                   type="button"
@@ -653,7 +769,7 @@ const Messaging: React.FC = () => {
                   type="text"
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
-                  placeholder="Type your message..."
+                  placeholder={replyingTo ? "Type your reply..." : "Type your message..."}
                   className="flex-1 px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
                   maxLength={500}
                   disabled={loading}
@@ -663,7 +779,7 @@ const Messaging: React.FC = () => {
                   disabled={!message.trim() || loading}
                   className="bg-green-600 text-white px-6 py-2 rounded-md hover:bg-green-700 disabled:bg-gray-400 transition-colors"
                 >
-                  Send
+                  {replyingTo ? 'Reply' : 'Send'}
                 </button>
                 {showEmojiPicker && (
                   <div className="absolute bottom-full right-0 mb-2 z-10">

@@ -387,7 +387,7 @@ app.get('/api/check-p2p/:username', async (req, res) => {
 
 // Send P2P message endpoint
 app.post('/api/send-p2p-message', async (req, res) => {
-  const { sender, receiver, message } = req.body;
+  const { sender, receiver, message, reply_id } = req.body;
   
   if (!sender || !receiver || !message) {
     return res.status(400).json({ error: 'Sender, receiver, and message are required' });
@@ -412,10 +412,22 @@ app.post('/api/send-p2p-message', async (req, res) => {
 
     const connectionId = connection.rows[0].id;
 
+    // Validate reply_id if provided
+    if (reply_id) {
+      const replyMessage = await pool.query(
+        'SELECT * FROM "p2p_messages" WHERE id = $1 AND connection_id = $2',
+        [reply_id, connectionId]
+      );
+      
+      if (replyMessage.rows.length === 0) {
+        return res.status(400).json({ error: 'Invalid reply message ID' });
+      }
+    }
+
     // Store message in p2p_messages table
     await pool.query(
-      'INSERT INTO "p2p_messages" (connection_id, sender, message) VALUES ($1, $2, $3)',
-      [connectionId, sender, message]
+      'INSERT INTO "p2p_messages" (connection_id, sender, message, reply_id) VALUES ($1, $2, $3, $4)',
+      [connectionId, sender, message, reply_id || null]
     );
 
     res.json({ 
@@ -453,7 +465,19 @@ app.get('/api/get-p2p-messages/:username/:partner', async (req, res) => {
 
     // Get messages for this connection that haven't expired
   const result = await pool.query(
-  'SELECT sender, message, sent_at, expires_at FROM "p2p_messages" WHERE connection_id = $1 AND expires_at > NOW() ORDER BY sent_at ASC',
+  `SELECT 
+    pm.id, 
+    pm.sender, 
+    pm.message, 
+    pm.sent_at, 
+    pm.expires_at, 
+    pm.reply_id,
+    reply_msg.sender as reply_sender,
+    reply_msg.message as reply_message
+   FROM "p2p_messages" pm 
+   LEFT JOIN "p2p_messages" reply_msg ON pm.reply_id = reply_msg.id
+   WHERE pm.connection_id = $1 AND pm.expires_at > NOW() 
+   ORDER BY pm.sent_at ASC`,
       [connectionId]
     );
 
@@ -670,7 +694,7 @@ app.post('/api/leave-group', async (req, res) => {
 
 // Send group message endpoint
 app.post('/api/send-group-message', async (req, res) => {
-  const { sender, groupId, message } = req.body;
+  const { sender, groupId, message, reply_id } = req.body;
   
   if (!sender || !groupId || !message) {
     return res.status(400).json({ error: 'Sender, group ID, and message are required' });
@@ -688,6 +712,18 @@ app.post('/api/send-group-message', async (req, res) => {
     
     if (memberCheck.rows.length === 0) {
       return res.status(403).json({ error: 'You are not a member of this group' });
+    }
+    
+    // Validate reply_id if provided
+    if (reply_id) {
+      const replyMessage = await pool.query(
+        'SELECT * FROM "group_messages" WHERE id = $1 AND group_id = $2',
+        [reply_id, groupId]
+      );
+      
+      if (replyMessage.rows.length === 0) {
+        return res.status(400).json({ error: 'Invalid reply message ID' });
+      }
     }
     
     // Check current message count
@@ -709,8 +745,8 @@ app.post('/api/send-group-message', async (req, res) => {
     
     // Insert new message
     await pool.query(
-      'INSERT INTO "group_messages" (group_id, sender, message) VALUES ($1, $2, $3)',
-      [groupId, sender, message.trim()]
+      'INSERT INTO "group_messages" (group_id, sender, message, reply_id) VALUES ($1, $2, $3, $4)',
+      [groupId, sender, message.trim(), reply_id || null]
     );
     
     // Update group's message count
@@ -751,7 +787,19 @@ app.get('/api/get-group-messages/:groupId', async (req, res) => {
     
     // Get messages (up to 50, ordered by time) and ensure only non-expired messages are returned
   const result = await pool.query(
-  'SELECT sender, message, sent_at, expires_at FROM "group_messages" WHERE group_id = $1 AND expires_at > NOW() ORDER BY sent_at ASC LIMIT 50',
+  `SELECT 
+    gm.id, 
+    gm.sender, 
+    gm.message, 
+    gm.sent_at, 
+    gm.expires_at, 
+    gm.reply_id,
+    reply_msg.sender as reply_sender,
+    reply_msg.message as reply_message
+   FROM "group_messages" gm 
+   LEFT JOIN "group_messages" reply_msg ON gm.reply_id = reply_msg.id
+   WHERE gm.group_id = $1 AND gm.expires_at > NOW() 
+   ORDER BY gm.sent_at ASC LIMIT 50`,
       [groupId]
     );
   const nowRes = await pool.query('SELECT NOW() as server_now');
