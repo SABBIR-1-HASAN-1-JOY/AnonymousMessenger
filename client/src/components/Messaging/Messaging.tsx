@@ -16,6 +16,7 @@ interface Message {
   reply_id?: number;
   reply_sender?: string;
   reply_message?: string;
+  react?: string | null; // Emoji reaction to the message
 }
 
 interface Group {
@@ -59,6 +60,11 @@ const Messaging: React.FC = () => {
   // Reply functionality states
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
 
+  // Reaction picker states
+  const [showReactionPicker, setShowReactionPicker] = useState(false);
+  const [reactionPickerMessageId, setReactionPickerMessageId] = useState<string | null>(null);
+  const [reactionPickerType, setReactionPickerType] = useState<'p2p' | 'group'>('p2p');
+
   // Group messaging states
   const [groups, setGroups] = useState<Group[]>([]);
   const [currentGroup, setCurrentGroup] = useState<Group | null>(null);
@@ -68,6 +74,16 @@ const Messaging: React.FC = () => {
 
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+
+  // Emoji reaction options
+  const emojiReactions = [
+    { emoji: '❤️', label: 'love' },
+    { emoji: '👍', label: 'like' },
+    { emoji: '😂', label: 'haha' },
+    { emoji: '😢', label: 'sad' },
+    { emoji: '😮', label: 'wow' },
+    { emoji: '😠', label: 'angry' }
+  ];
 
   useEffect(() => {
     if (!user) {
@@ -380,6 +396,42 @@ const Messaging: React.FC = () => {
     }
   };
 
+  // Handle message reactions
+  const reactToMessage = async (messageId: string, emoji: string | null, messageType: 'p2p' | 'group') => {
+    if (!user) return;
+    
+    try {
+      const r = await fetch(`${API_BASE_URL}/api/react-to-message`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messageId,
+          messageType,
+          username: user.username,
+          emoji
+        }),
+      });
+      
+      if (r.ok) {
+        // Update the message in the local state
+        setMessages(prev => 
+          prev.map(msg => 
+            msg.id === messageId 
+              ? { ...msg, react: emoji }
+              : msg
+          )
+        );
+      } else {
+        const error = await r.json();
+        console.error('Failed to react to message:', error);
+        alert(error.error || 'Failed to react to message');
+      }
+    } catch (e) {
+      console.error('Error reacting to message:', e);
+      alert('Error reacting to message');
+    }
+  };
+
   if (!user) return null;
 
   return (
@@ -488,6 +540,20 @@ const Messaging: React.FC = () => {
                             )}
                             
                             <p>{msg.message || 'Message content'}</p>
+                            
+                            {/* Show existing reaction */}
+                            {msg.react && (
+                              <div className="flex items-center mt-2">
+                                <span 
+                                  className="text-lg cursor-pointer hover:scale-110 transition-transform"
+                                  onClick={() => reactToMessage(msg.id!, null, 'p2p')}
+                                  title="Click to remove reaction"
+                                >
+                                  {msg.react}
+                                </span>
+                              </div>
+                            )}
+                            
                             <div className="flex items-center justify-between mt-1">
                               <p className="text-xs opacity-75">Disappears in {getRemaining(msg.sent_at, MESSAGE_TTL_MS, msg.expires_at)}</p>
                               {msg.sender === user.username && (
@@ -503,17 +569,40 @@ const Messaging: React.FC = () => {
                               )}
                             </div>
                             
-                            {/* Reply button */}
+                            {/* Reaction and Reply buttons */}
                             {msg.id && !msg.sending && (
-                              <button
-                                onClick={() => setReplyingTo(msg)}
-                                className={`absolute -right-1 top-1/2 transform -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded text-xs ${
-                                  msg.sender === user.username ? 'bg-blue-700 hover:bg-blue-800 text-white' : 'bg-gray-300 hover:bg-gray-400 text-gray-700'
-                                }`}
-                                title="Reply"
-                              >
-                                ↩️
-                              </button>
+                              <div className="absolute -right-1 top-1/2 transform -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+                                {/* Reaction picker button */}
+                                <button
+                                  onClick={() => {
+                                    if (msg.react) {
+                                      // If message already has a reaction, remove it
+                                      reactToMessage(msg.id!, null, 'p2p');
+                                    } else {
+                                      // Open reaction picker
+                                      setReactionPickerMessageId(msg.id!);
+                                      setReactionPickerType('p2p');
+                                      setShowReactionPicker(true);
+                                    }
+                                  }}
+                                  className={`p-1 rounded text-xs ${
+                                    msg.sender === user.username ? 'bg-blue-700 hover:bg-blue-800 text-white' : 'bg-gray-300 hover:bg-gray-400 text-gray-700'
+                                  }`}
+                                  title={msg.react ? "Remove reaction" : "Add reaction"}
+                                >
+                                  {msg.react ? '💔' : '😊'}
+                                </button>
+                                {/* Reply button */}
+                                <button
+                                  onClick={() => setReplyingTo(msg)}
+                                  className={`p-1 rounded text-xs ${
+                                    msg.sender === user.username ? 'bg-blue-700 hover:bg-blue-800 text-white' : 'bg-gray-300 hover:bg-gray-400 text-gray-700'
+                                  }`}
+                                  title="Reply"
+                                >
+                                  ↩️
+                                </button>
+                              </div>
                             )}
                           </div>
                         </div>
@@ -714,19 +803,56 @@ const Messaging: React.FC = () => {
                         )}
                         
                         <p>{msg.message}</p>
+                        
+                        {/* Show existing reaction */}
+                        {msg.react && (
+                          <div className="flex items-center mt-2">
+                            <span 
+                              className="text-lg cursor-pointer hover:scale-110 transition-transform"
+                              onClick={() => reactToMessage(msg.id!, null, 'group')}
+                              title="Click to remove reaction"
+                            >
+                              {msg.react}
+                            </span>
+                          </div>
+                        )}
+                        
                         <p className="text-xs opacity-75 mt-1">Disappears in {getRemaining(msg.sent_at, MESSAGE_TTL_MS, msg.expires_at)}</p>
                         
-                        {/* Reply button */}
+                        {/* Reaction and Reply buttons */}
                         {msg.id && (
-                          <button
-                            onClick={() => setReplyingTo(msg)}
-                            className={`absolute -right-1 top-1/2 transform -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded text-xs ${
-                              msg.sender === user.username ? 'bg-green-700 hover:bg-green-800 text-white' : 'bg-gray-300 hover:bg-gray-400 text-gray-700'
-                            }`}
-                            title="Reply"
-                          >
-                            ↩️
-                          </button>
+                          <div className="absolute -right-1 top-1/2 transform -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+                            {/* Reaction picker button */}
+                            <button
+                              onClick={() => {
+                                if (msg.react) {
+                                  // If message already has a reaction, remove it
+                                  reactToMessage(msg.id!, null, 'group');
+                                } else {
+                                  // Open reaction picker
+                                  setReactionPickerMessageId(msg.id!);
+                                  setReactionPickerType('group');
+                                  setShowReactionPicker(true);
+                                }
+                              }}
+                              className={`p-1 rounded text-xs ${
+                                msg.sender === user.username ? 'bg-green-700 hover:bg-green-800 text-white' : 'bg-gray-300 hover:bg-gray-400 text-gray-700'
+                              }`}
+                              title={msg.react ? "Remove reaction" : "Add reaction"}
+                            >
+                              {msg.react ? '💔' : '😊'}
+                            </button>
+                            {/* Reply button */}
+                            <button
+                              onClick={() => setReplyingTo(msg)}
+                              className={`p-1 rounded text-xs ${
+                                msg.sender === user.username ? 'bg-green-700 hover:bg-green-800 text-white' : 'bg-gray-300 hover:bg-gray-400 text-gray-700'
+                              }`}
+                              title="Reply"
+                            >
+                              ↩️
+                            </button>
+                          </div>
                         )}
                       </div>
                     </div>
@@ -797,6 +923,45 @@ const Messaging: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Reaction Picker Popup */}
+      {showReactionPicker && reactionPickerMessageId && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          onClick={() => setShowReactionPicker(false)}
+        >
+          <div className="absolute inset-0 bg-black bg-opacity-25"></div>
+          <div 
+            className="relative bg-white rounded-lg shadow-lg p-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-semibold mb-3 text-center">Choose your reaction</h3>
+            <div className="grid grid-cols-3 gap-3">
+              {emojiReactions.map((reaction) => (
+                <button
+                  key={reaction.label}
+                  onClick={() => {
+                    reactToMessage(reactionPickerMessageId, reaction.emoji, reactionPickerType);
+                    setShowReactionPicker(false);
+                    setReactionPickerMessageId(null);
+                  }}
+                  className="flex flex-col items-center p-3 rounded-lg border-2 border-gray-200 hover:border-blue-400 hover:bg-blue-50 transition-all"
+                  title={`React with ${reaction.label}`}
+                >
+                  <span className="text-2xl mb-1">{reaction.emoji}</span>
+                  <span className="text-xs text-gray-600 capitalize">{reaction.label}</span>
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={() => setShowReactionPicker(false)}
+              className="mt-4 w-full bg-gray-200 hover:bg-gray-300 px-4 py-2 rounded-md text-sm"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

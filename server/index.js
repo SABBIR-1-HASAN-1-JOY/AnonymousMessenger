@@ -472,6 +472,7 @@ app.get('/api/get-p2p-messages/:username/:partner', async (req, res) => {
     pm.sent_at, 
     pm.expires_at, 
     pm.reply_id,
+    pm.react,
     reply_msg.sender as reply_sender,
     reply_msg.message as reply_message
    FROM "p2p_messages" pm 
@@ -794,6 +795,7 @@ app.get('/api/get-group-messages/:groupId', async (req, res) => {
     gm.sent_at, 
     gm.expires_at, 
     gm.reply_id,
+    gm.react,
     reply_msg.sender as reply_sender,
     reply_msg.message as reply_message
    FROM "group_messages" gm 
@@ -967,6 +969,80 @@ process.on('SIGTERM', () => {
   process.exit(0);
 });
 
+// React to message endpoint
+app.post('/api/react-to-message', async (req, res) => {
+  const { messageId, messageType, username, emoji } = req.body;
+  
+  console.log('=== REACT TO MESSAGE REQUEST ===');
+  console.log('Message ID:', messageId);
+  console.log('Message Type:', messageType);
+  console.log('Username:', username);
+  console.log('Emoji:', emoji);
+  
+  if (!messageId || !messageType || !username) {
+    return res.status(400).json({ error: 'Message ID, message type, and username are required' });
+  }
+
+  // Validate messageType
+  if (!['p2p', 'group'].includes(messageType)) {
+    return res.status(400).json({ error: 'Message type must be either "p2p" or "group"' });
+  }
+
+  try {
+    // Update user's last_active timestamp
+    await pool.query(
+      'UPDATE "users" SET last_active = NOW() WHERE username = $1',
+      [username]
+    );
+
+    let tableName;
+    let authorizationQuery;
+    let authParams;
+
+    if (messageType === 'p2p') {
+      tableName = 'p2p_messages';
+      // For P2P messages, check if user is part of the connection
+      authorizationQuery = `
+        SELECT pm.* FROM "p2p_messages" pm
+        JOIN "p2p_connections" pc ON pm.connection_id = pc.id
+        WHERE pm.id = $1 AND (pc.user1 = $2 OR pc.user2 = $2) AND pc.status = 'active'
+      `;
+      authParams = [messageId, username];
+    } else {
+      tableName = 'group_messages';
+      // For group messages, check if user is a member of the group
+      authorizationQuery = `
+        SELECT gm.* FROM "group_messages" gm
+        JOIN "group_members" gme ON gm.group_id = gme.group_id
+        WHERE gm.id = $1 AND gme.username = $2
+      `;
+      authParams = [messageId, username];
+    }
+
+    // Check if user has permission to react to this message
+    const messageResult = await pool.query(authorizationQuery, authParams);
+    
+    if (messageResult.rows.length === 0) {
+      return res.status(403).json({ error: 'You do not have permission to react to this message or message not found' });
+    }
+
+    // Update the react column with the emoji (null to remove reaction)
+    const updateQuery = `UPDATE "${tableName}" SET react = $1 WHERE id = $2`;
+    await pool.query(updateQuery, [emoji || null, messageId]);
+
+    console.log(`Reaction updated for ${messageType} message ${messageId}: ${emoji || 'removed'}`);
+    
+    res.json({ 
+      success: true,
+      message: emoji ? 'Reaction added successfully' : 'Reaction removed successfully',
+      reaction: emoji || null
+    });
+  } catch (err) {
+    console.error('React to message error:', err.message);
+    res.status(500).json({ error: 'Server error updating reaction' });
+  }
+});
+
 process.on('SIGINT', () => {
   console.log('SIGINT received, shutting down gracefully');
   process.exit(0);
@@ -997,6 +1073,23 @@ async function initializeServer() {
     
     await Promise.race([dbPromise, timeoutPromise]);
     console.log('✅ Database connection successful');
+    
+    // Initialize database schema for reactions
+    try {
+      await pool.query(`
+        ALTER TABLE "p2p_messages" 
+        ADD COLUMN IF NOT EXISTS "react" TEXT
+      `);
+      
+      await pool.query(`
+        ALTER TABLE "group_messages" 
+        ADD COLUMN IF NOT EXISTS "react" TEXT
+      `);
+      
+      console.log('✅ Database schema for reactions initialized');
+    } catch (schemaErr) {
+      console.error('❌ Schema initialization error:', schemaErr.message);
+    }
     
     // Start cleanup jobs
     startCleanupJobs();
